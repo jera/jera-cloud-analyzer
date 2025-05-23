@@ -67,5 +67,5 @@ def run_agent_query(query: str):
 
 # Executar o agente com uma pergunta de exemplo
 if __name__ == "__main__":
-    query = f"Nos ultimos 30 dias, quanto eu estou gastando com o serviço de EC2? me detalhe como o serviço esta sendo usado"
+    query = f"Quanto custa a instância Valhalla?"
     run_agent_query(query)
