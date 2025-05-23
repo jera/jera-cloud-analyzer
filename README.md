@@ -221,10 +221,14 @@ cloud-insights/
 │       ├── main.py            # 🎯 Entry point e orquestração
 │       │
 │       ├── 🤖 Inteligência Artificial
-│       │   ├── agent.py       # Agente principal com OpenAI
+│       │   ├── agent.py       # Agente principal (configuração)
+│       │   ├── system_prompt.py # Prompt do sistema (separado)
 │       │   ├── README.md      # Documentação específica de IA
-│       │   └── tools/         # Ferramentas modulares
-│       │       └── top_services.py
+│       │   └── tools/         # 🛠️ Ferramentas modulares
+│       │       ├── __init__.py        # Importações centralizadas
+│       │       ├── aws_data_tools.py  # 8 ferramentas AWS
+│       │       ├── utility_tools.py   # 4 ferramentas utilitárias
+│       │       └── README.md          # Documentação das tools
 │       │
 │       └── ☁️ Provedores Cloud
 │           └── aws/
