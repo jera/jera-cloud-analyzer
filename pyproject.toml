@@ -1,0 +1,7 @@
+[project]
+name = "cloud-insights"
+version = "0.1.0"
+description = "AWS Cost analyzer"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
