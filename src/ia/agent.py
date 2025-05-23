@@ -17,9 +17,9 @@ from haystack.components.generators.chat import OpenAIChatGenerator
 from haystack.dataclasses import ChatMessage
 
 # Importar todas as ferramentas da pasta tools
-from .tools import ALL_TOOLS
+from src.ia.tools import ALL_TOOLS
 # Importar o prompt do sistema
-from .system_prompt import SYSTEM_PROMPT
+from src.ia.system_prompt import SYSTEM_PROMPT
 
 
 # Configurar o agente
@@ -67,5 +67,5 @@ def run_agent_query(query: str):
 
 # Executar o agente com uma pergunta de exemplo
 if __name__ == "__main__":
-    query = f"Qual o serviço mais caro da minha conta AWS?"
+    query = f"Nos ultimos 30 dias, quanto eu estou gastando com o serviço de EC2? me detalhe como o serviço esta sendo usado"
     run_agent_query(query)
