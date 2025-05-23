@@ -39,19 +39,22 @@ def get_top_services(start_date: Optional[str] = None, end_date: Optional[str] =
         Lista dos serviços mais caros, ordenados por custo (do maior para o menor)
     """
     try:
-        print("GET TOP SERVICES DATE", start_date, end_date)
+        print(f"GET TOP SERVICES - Input dates - Start: {start_date}, End: {end_date}")
+        
         # Definir datas padrão se não fornecidas
         if not end_date:
             end_date = datetime.now().strftime('%Y-%m-%d')
         if not start_date:
             start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
         
+        print(f"GET TOP SERVICES - Calculated dates - Start: {start_date}, End: {end_date}")
+        
         cost_explorer = CostExplorer()
         analyzer = CostAnalyzer(cost_explorer)
         top_services = analyzer.get_top_services(limit=limit, start_date=start_date, end_date=end_date)
         
         result = json.dumps(top_services, cls=JsonEncoder, ensure_ascii=False, indent=2)
-        print("GET TOP SERVICES", result)
+        print(f"GET TOP SERVICES - Found {len(top_services)} services")
         return result
         
     except Exception as e:
@@ -71,22 +74,64 @@ def get_service_details(service_name: str, start_date: Optional[str] = None, end
     Returns:
         Detalhes de custo do serviço especificado
     """
-    print("GET SERVICE DETAILS DATE", service_name, start_date, end_date)
+    print(f"GET SERVICE DETAILS - Service: {service_name}, Start: {start_date}, End: {end_date}")
+    
     try:
-        # Definir datas padrão se não fornecidas
-        if not end_date:
-            end_date = datetime.now().strftime('%Y-%m-%d')
-        if not start_date:
-            start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
-            
         cost_explorer = CostExplorer()
-        service_details = cost_explorer.get_service_details(service_name, start_date, end_date)
         
-        result = json.dumps(service_details, cls=JsonEncoder, ensure_ascii=False, indent=2)
-        return result
+        # Se não forneceu datas, tenta períodos progressivamente maiores
+        if not start_date or not end_date:
+            # Define data final como hoje
+            if not end_date:
+                end_date = datetime.now().strftime('%Y-%m-%d')
+            
+            # Tenta diferentes períodos: 30, 90, 180, 365 dias
+            periods_to_try = [30, 90, 180, 365]
+            
+            for days in periods_to_try:
+                test_start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+                print(f"GET SERVICE DETAILS - Trying period: {test_start_date} to {end_date} ({days} days)")
+                
+                try:
+                    service_details = cost_explorer.get_service_details(service_name, test_start_date, end_date)
+                    
+                    # Verifica se há dados (não vazios)
+                    has_data = False
+                    for period in service_details.get('ResultsByTime', []):
+                        total_cost = float(period.get('Total', {}).get('UnblendedCost', {}).get('Amount', '0'))
+                        groups = period.get('Groups', [])
+                        if total_cost > 0 or len(groups) > 0:
+                            has_data = True
+                            break
+                    
+                    if has_data:
+                        print(f"GET SERVICE DETAILS - Found data with {days} days period")
+                        result = json.dumps(service_details, cls=JsonEncoder, ensure_ascii=False, indent=2)
+                        return result
+                    else:
+                        print(f"GET SERVICE DETAILS - No data found for {days} days, trying longer period...")
+                        
+                except Exception as e:
+                    print(f"GET SERVICE DETAILS - Error with {days} days period: {e}")
+                    continue
+            
+            # Se chegou aqui, não encontrou dados em nenhum período
+            return json.dumps({
+                "message": f"Nenhum dado encontrado para {service_name} nos últimos 365 dias",
+                "service_name": service_name,
+                "periods_checked": periods_to_try,
+                "suggestion": "Verifique se o serviço está sendo usado ou se há dados históricos disponíveis"
+            }, ensure_ascii=False, indent=2)
+        
+        else:
+            # Se as datas foram fornecidas, usa elas diretamente
+            print(f"GET SERVICE DETAILS - Using provided dates - Start: {start_date}, End: {end_date}")
+            service_details = cost_explorer.get_service_details(service_name, start_date, end_date)
+            result = json.dumps(service_details, cls=JsonEncoder, ensure_ascii=False, indent=2)
+            return result
         
     except Exception as e:
-        print("GET SERVICE DETAILS ERROR", e)
+        print(f"GET SERVICE DETAILS ERROR: {e}")
         return f"Erro ao obter detalhes do serviço: {str(e)}"
 
 
@@ -548,4 +593,87 @@ def get_account_context_data() -> str:
         return json.dumps(context_data, cls=JsonEncoder, ensure_ascii=False, indent=2)
         
     except Exception as e:
-        return json.dumps({"error": f"Erro na coleta de dados contextuais: {str(e)}"}, ensure_ascii=False) 
+        return json.dumps({"error": f"Erro na coleta de dados contextuais: {str(e)}"}, ensure_ascii=False)
+
+
+@tool
+def check_account_data_availability() -> str:
+    """
+    Verifica se existem dados de custos disponíveis na conta AWS e em que períodos.
+    
+    Returns:
+        JSON com informações sobre disponibilidade de dados históricos
+    """
+    print("CHAMANDO CHECK_ACCOUNT_DATA_AVAILABILITY")
+    try:
+        cost_explorer = CostExplorer()
+        
+        # Períodos para verificar (em dias atrás)
+        periods_to_check = [7, 30, 90, 180, 365]
+        data_availability = {
+            "check_timestamp": datetime.now().isoformat(),
+            "periods_checked": [],
+            "has_any_data": False,
+            "recommended_period": None,
+            "suggestions": []
+        }
+        
+        for days in periods_to_check:
+            start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            end_date = datetime.now().strftime('%Y-%m-%d')
+            
+            try:
+                # Tenta buscar dados gerais de custo
+                response = cost_explorer.client.get_cost_and_usage(
+                    TimePeriod={'Start': start_date, 'End': end_date},
+                    Granularity='MONTHLY',
+                    Metrics=['UnblendedCost']
+                )
+                
+                total_cost = 0
+                for period in response.get('ResultsByTime', []):
+                    cost = float(period.get('Total', {}).get('UnblendedCost', {}).get('Amount', '0'))
+                    total_cost += cost
+                
+                period_info = {
+                    "days": days,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "total_cost": total_cost,
+                    "has_data": total_cost > 0
+                }
+                
+                data_availability["periods_checked"].append(period_info)
+                
+                if total_cost > 0 and not data_availability["has_any_data"]:
+                    data_availability["has_any_data"] = True
+                    data_availability["recommended_period"] = days
+                
+            except Exception as e:
+                period_info = {
+                    "days": days,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "error": str(e)
+                }
+                data_availability["periods_checked"].append(period_info)
+        
+        # Gerar sugestões baseadas nos resultados
+        if not data_availability["has_any_data"]:
+            data_availability["suggestions"] = [
+                "Esta conta AWS pode ser nova ou não ter custos registrados ainda",
+                "Verifique se há recursos ativos usando discovery tools",
+                "Configure billing alerts para monitorar custos futuros",
+                "Considere implementar tagging para melhor organização"
+            ]
+        else:
+            data_availability["suggestions"] = [
+                f"Use período de {data_availability['recommended_period']} dias para análises",
+                "Configure tags para melhor categorização de custos",
+                "Implemente políticas de cost optimization"
+            ]
+        
+        return json.dumps(data_availability, cls=JsonEncoder, ensure_ascii=False, indent=2)
+        
+    except Exception as e:
+        return json.dumps({"error": f"Erro na verificação de dados: {str(e)}"}, ensure_ascii=False) 

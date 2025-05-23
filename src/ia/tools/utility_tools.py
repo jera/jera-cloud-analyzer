@@ -33,8 +33,9 @@ def get_current_date() -> str:
     """
     Obtém a data atual no formato YYYY-MM-DD.
     """
-    print("GET CURRENT DATE")
-    return datetime.now().strftime('%Y-%m-%d')
+    current_date = datetime.now().strftime('%Y-%m-%d')
+    print(f"GET CURRENT DATE: {current_date}")
+    return current_date
 
 
 @tool
