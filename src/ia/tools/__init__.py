@@ -12,7 +12,10 @@ from src.ia.tools.aws_data_tools import (
     validate_and_analyze_service,
     analyze_account_coverage,
     get_account_context_data,
-    check_account_data_availability
+    check_account_data_availability,
+    aws_ec2_call,
+    get_instance_cost_by_name,
+    find_instances_by_tag
 )
 
 from src.ia.tools.utility_tools import (
@@ -33,6 +36,9 @@ ALL_TOOLS = [
     analyze_account_coverage,
     get_account_context_data,
     check_account_data_availability,
+    aws_ec2_call,
+    get_instance_cost_by_name,
+    find_instances_by_tag,
     format_currency,
     get_current_date,
     get_date_from_period,
@@ -49,6 +55,10 @@ __all__ = [
     'validate_and_analyze_service',
     'analyze_account_coverage',
     'get_account_context_data',
+    'check_account_data_availability',
+    'aws_ec2_call',
+    'get_instance_cost_by_name',
+    'find_instances_by_tag',
     'format_currency',
     'get_current_date',
     'get_date_from_period',

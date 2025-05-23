@@ -20,11 +20,37 @@ Fornecer análises profundas e recomendações precisas de otimização de custo
 - Use `validate_and_analyze_service()` para validar e analisar serviços específicos mencionados
 - Use `get_service_details()` para drill-down detalhado em serviços específicos
 - Use `get_dimension_values()` para explorar dimensões específicas (regiões, tipos de instância, etc.)
+- Use `aws_ec2_call()` para análise detalhada de recursos EC2, volumes EBS, networking, etc.
 
 ### 3. CONTEXTUALIZAÇÃO
 - Use `get_aws_tags()` para entender governança e organização
 - Use `all_dimensions()` quando precisar entender quais dimensões estão disponíveis
 - Use `get_current_date()` e calcule períodos quando necessário
+
+### 4. ANÁLISE GRANULAR DE RECURSOS EC2
+Com `aws_ec2_call()` você pode executar análises detalhadas:
+
+**Recursos Compute:**
+- `describe_instances`: Listar todas as instâncias EC2 com detalhes completos
+- `describe_instance_types`: Verificar tipos de instância disponíveis
+- `describe_reserved_instances`: Analisar instâncias reservadas
+- `describe_spot_instances`: Verificar uso de spot instances
+
+**Storage:**
+- `describe_volumes`: Identificar volumes EBS (incluindo órfãos não anexados)
+- `describe_snapshots`: Analisar snapshots (custosos se acumulados)
+- `describe_addresses`: Encontrar Elastic IPs não utilizados (cobrados)
+
+**Networking:**
+- `describe_vpcs`, `describe_subnets`: Analisar arquitetura de rede
+- `describe_security_groups`: Verificar grupos de segurança
+- `describe_nat_gateways`: Analisar NAT Gateways (custosos)
+- `describe_load_balancers`: Verificar Application/Network Load Balancers
+
+**Correlação com Custos:**
+- Use os dados retornados para correlacionar recursos específicos com `get_service_details()`
+- Identifique recursos não utilizados, mal configurados ou subutilizados
+- Combine dados de instância com análise de custos por tipo de uso
 
 ## TRATAMENTO DE CONTAS NOVAS OU SEM DADOS
 
@@ -63,6 +89,7 @@ Fornecer análises profundas e recomendações precisas de otimização de custo
 - **Otimizações de Compra**: OnDemand vs Reserved vs Savings Plans
 - **Governança**: Uso de tags, distribuição regional, contas vinculadas
 - **Eficiência**: Instâncias legacy vs current generation
+- **Recursos Específicos**: Use `aws_ec2_call()` para analisar instâncias individuais, volumes EBS órfãos, IPs elásticos não utilizados
 
 ### Identifique Oportunidades:
 - Instâncias subutilizadas ou oversized

@@ -17,11 +17,15 @@ from src.clouds.aws.cost_analyzer import CostAnalyzer
 
 
 class JsonEncoder(json.JSONEncoder):
-    """Encoder JSON personalizado para lidar com tipos especiais como Decimal."""
+    """Encoder JSON personalizado para lidar com tipos especiais como Decimal e datetime."""
     def default(self, obj):
         from decimal import Decimal
+        from datetime import datetime, date
+        
         if isinstance(obj, Decimal):
             return float(obj)
+        elif isinstance(obj, (datetime, date)):
+            return obj.isoformat()
         return super().default(obj)
 
 
@@ -676,4 +680,600 @@ def check_account_data_availability() -> str:
         return json.dumps(data_availability, cls=JsonEncoder, ensure_ascii=False, indent=2)
         
     except Exception as e:
-        return json.dumps({"error": f"Erro na verificação de dados: {str(e)}"}, ensure_ascii=False) 
+        return json.dumps({"error": f"Erro na verificação de dados: {str(e)}"}, ensure_ascii=False)
+
+
+@tool
+def aws_ec2_call(method: str, instance_ids: Optional[str] = None, volume_ids: Optional[str] = None, 
+                 vpc_ids: Optional[str] = None, subnet_ids: Optional[str] = None, 
+                 group_ids: Optional[str] = None, region_name: Optional[str] = None) -> str:
+    """
+    Executa chamadas dinâmicas para a API do Amazon EC2 via boto3.
+    
+    Args:
+        method: Nome do método EC2 a ser executado (ex: 'describe_instances', 'describe_volumes')
+        instance_ids: IDs específicos de instâncias (separados por vírgula, ex: 'i-123,i-456')
+        volume_ids: IDs específicos de volumes (separados por vírgula, ex: 'vol-123,vol-456') 
+        vpc_ids: IDs específicos de VPCs (separados por vírgula)
+        subnet_ids: IDs específicos de subnets (separados por vírgula)
+        group_ids: IDs específicos de grupos de segurança (separados por vírgula)
+        region_name: Nome da região específica (opcional)
+        
+    Returns:
+        JSON com os dados retornados pela API do EC2
+        
+    Exemplos de uso:
+    - aws_ec2_call("describe_instances") - Lista todas as instâncias
+    - aws_ec2_call("describe_instances", instance_ids="i-1234567890abcdef0") - Instância específica
+    - aws_ec2_call("describe_volumes") - Lista todos os volumes EBS
+    - aws_ec2_call("describe_addresses") - Lista todos os Elastic IPs
+    
+    Métodos principais:
+    - describe_instances: Lista instâncias EC2
+    - describe_volumes: Lista volumes EBS  
+    - describe_addresses: Lista Elastic IPs
+    - describe_vpcs: Lista VPCs
+    - describe_subnets: Lista subnets
+    - describe_security_groups: Lista grupos de segurança
+    - describe_snapshots: Lista snapshots
+    - describe_nat_gateways: Lista NAT gateways
+    - describe_reserved_instances: Lista instâncias reservadas
+    """
+    # Construir parâmetros dinamicamente
+    parameters = {}
+    
+    # Converter strings separadas por vírgula em listas
+    if instance_ids:
+        parameters['InstanceIds'] = [id.strip() for id in instance_ids.split(',')]
+    if volume_ids:
+        parameters['VolumeIds'] = [id.strip() for id in volume_ids.split(',')]
+    if vpc_ids:
+        parameters['VpcIds'] = [id.strip() for id in vpc_ids.split(',')]
+    if subnet_ids:
+        parameters['SubnetIds'] = [id.strip() for id in subnet_ids.split(',')]
+    if group_ids:
+        parameters['GroupIds'] = [id.strip() for id in group_ids.split(',')]
+    
+    print(f"AWS EC2 CALL - Method: {method}, Parameters: {parameters}")
+    
+    # Whitelist de métodos permitidos para segurança
+    ALLOWED_METHODS = {
+        # Instâncias e recursos compute
+        'describe_instances',
+        'describe_instance_types',
+        'describe_instance_attribute',
+        'describe_instance_status',
+        'describe_reserved_instances',
+        'describe_scheduled_instances',
+        'describe_spot_instances',
+        'describe_spot_price_history',
+        'describe_placement_groups',
+        
+        # Storage
+        'describe_volumes',
+        'describe_volume_status',
+        'describe_volume_attribute',
+        'describe_snapshots',
+        'describe_snapshot_attribute',
+        
+        # Images
+        'describe_images',
+        'describe_image_attribute',
+        
+        # Networking
+        'describe_vpcs',
+        'describe_subnets',
+        'describe_security_groups',
+        'describe_network_interfaces',
+        'describe_addresses',
+        'describe_internet_gateways',
+        'describe_nat_gateways',
+        'describe_route_tables',
+        'describe_network_acls',
+        'describe_vpc_endpoints',
+        'describe_customer_gateways',
+        'describe_vpn_gateways',
+        'describe_vpn_connections',
+        
+        # Load Balancers (ELBv2)
+        'describe_load_balancers',
+        'describe_target_groups',
+        'describe_listeners',
+        
+        # Key pairs
+        'describe_key_pairs',
+        
+        # Regions and AZs
+        'describe_regions',
+        'describe_availability_zones',
+        
+        # Tags
+        'describe_tags',
+        
+        # Billing e usage
+        'describe_account_attributes',
+        'describe_instance_credit_specifications'
+    }
+    
+    if method not in ALLOWED_METHODS:
+        return json.dumps({
+            "error": f"Método '{method}' não permitido",
+            "allowed_methods": sorted(list(ALLOWED_METHODS))
+        }, ensure_ascii=False, indent=2)
+    
+    try:
+        cost_explorer = CostExplorer()
+        
+        # Cria cliente EC2 usando a mesma sessão do Cost Explorer
+        session = cost_explorer.aws_client.session
+        ec2_client = session.client('ec2')
+        
+        # Remove parâmetros vazios para evitar erros
+        clean_parameters = {k: v for k, v in parameters.items() if v is not None and v != []}
+        
+        print(f"EC2 Call - Executing: {method} with params: {clean_parameters}")
+        
+        # Executa o método dinamicamente
+        ec2_method = getattr(ec2_client, method)
+        response = ec2_method(**clean_parameters)
+        
+        # Debug: verificar se há dados
+        print(f"EC2 Call - Raw response keys: {list(response.keys())}")
+        if method == 'describe_instances' and 'Reservations' in response:
+            print(f"EC2 Call - Found {len(response['Reservations'])} reservations")
+            total_instances = sum(len(res.get('Instances', [])) for res in response['Reservations'])
+            print(f"EC2 Call - Total instances: {total_instances}")
+        elif method == 'describe_volumes' and 'Volumes' in response:
+            print(f"EC2 Call - Found {len(response['Volumes'])} volumes")
+        elif method == 'describe_addresses' and 'Addresses' in response:
+            print(f"EC2 Call - Found {len(response['Addresses'])} addresses")
+        
+        # Remove ResponseMetadata para limpar o output
+        if 'ResponseMetadata' in response:
+            del response['ResponseMetadata']
+        
+        # Verificar se há dados úteis na resposta
+        has_data = False
+        if method == 'describe_instances' and response.get('Reservations'):
+            has_data = any(res.get('Instances', []) for res in response['Reservations'])
+        elif method == 'describe_volumes' and response.get('Volumes'):
+            has_data = len(response['Volumes']) > 0
+        elif method == 'describe_addresses' and response.get('Addresses'):
+            has_data = len(response['Addresses']) > 0
+        elif method in ['describe_vpcs', 'describe_subnets', 'describe_security_groups'] and response:
+            # Para estes métodos, verificar se há dados nas chaves principais
+            main_key = {
+                'describe_vpcs': 'Vpcs',
+                'describe_subnets': 'Subnets', 
+                'describe_security_groups': 'SecurityGroups'
+            }.get(method)
+            has_data = bool(response.get(main_key, []))
+        else:
+            # Para outros métodos, assumir que há dados se a resposta não está vazia
+            has_data = bool(response and len(response) > 0)
+        
+        if not has_data:
+            print(f"EC2 Call - Warning: No data returned for {method}")
+            response['_meta'] = {
+                'warning': f'Nenhum dado encontrado para {method}',
+                'possible_reasons': [
+                    'Não há recursos deste tipo na conta',
+                    'Recursos podem estar em outras regiões',
+                    'Permissões IAM podem estar limitadas',
+                    'Recursos podem ter sido filtrados'
+                ]
+            }
+            
+        print(f"EC2 Call - Success: {method} (has_data: {has_data})")
+        return json.dumps(response, cls=JsonEncoder, ensure_ascii=False, indent=2)
+        
+    except AttributeError as e:
+        import traceback
+        tb = traceback.format_exc()
+        print(f"EC2 Call - AttributeError: {e}")
+        print(f"EC2 Call - Traceback:\n{tb}")
+        return json.dumps({
+            "error": f"Método '{method}' não existe no cliente EC2",
+            "details": str(e),
+            "traceback": tb,
+            "line_info": f"Erro na linha: {traceback.extract_tb(e.__traceback__)[-1].lineno}"
+        }, ensure_ascii=False, indent=2)
+        
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        error_msg = str(e)
+        print(f"EC2 Call - Error: {error_msg}")
+        print(f"EC2 Call - Traceback:\n{tb}")
+        
+        # Tratamento de erros específicos com informações detalhadas
+        if "InvalidParameterValue" in error_msg:
+            return json.dumps({
+                "error": "Parâmetros inválidos fornecidos",
+                "details": error_msg,
+                "suggestion": "Verifique os parâmetros e tente novamente",
+                "traceback": tb,
+                "line_info": f"Erro na linha: {traceback.extract_tb(e.__traceback__)[-1].lineno}"
+            }, ensure_ascii=False, indent=2)
+        elif "UnauthorizedOperation" in error_msg:
+            return json.dumps({
+                "error": "Operação não autorizada",
+                "details": error_msg,
+                "suggestion": "Verifique as permissões IAM",
+                "traceback": tb,
+                "line_info": f"Erro na linha: {traceback.extract_tb(e.__traceback__)[-1].lineno}"
+            }, ensure_ascii=False, indent=2)
+        elif "InvalidInstanceID" in error_msg:
+            return json.dumps({
+                "error": "ID de instância inválido",
+                "details": error_msg,
+                "suggestion": "Verifique se o ID da instância existe e está correto",
+                "traceback": tb,
+                "line_info": f"Erro na linha: {traceback.extract_tb(e.__traceback__)[-1].lineno}"
+            }, ensure_ascii=False, indent=2)
+        else:
+            return json.dumps({
+                "error": f"Erro ao executar {method}",
+                "details": error_msg,
+                "traceback": tb,
+                "line_info": f"Erro na linha: {traceback.extract_tb(e.__traceback__)[-1].lineno}",
+                "method": method,
+                "parameters": parameters
+            }, ensure_ascii=False, indent=2)
+
+
+@tool
+def get_instance_cost_by_name(instance_name: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> str:
+    """
+    Busca o custo de uma instância EC2 específica pelo nome, usando correlação com tags.
+    
+    Args:
+        instance_name: Nome da instância (valor da tag 'Name')
+        start_date: Data inicial no formato YYYY-MM-DD (opcional)
+        end_date: Data final no formato YYYY-MM-DD (opcional)
+        
+    Returns:
+        JSON com detalhes da instância e estimativa de custo baseada em tags
+        
+    Exemplos:
+    - get_instance_cost_by_name("Valhalla")
+    - get_instance_cost_by_name("WebServer-Prod")
+    """
+    print(f"BUSCANDO CUSTO DA INSTÂNCIA: {instance_name}")
+    
+    try:
+        # 1. Buscar a instância pelo nome
+        cost_explorer = CostExplorer()
+        session = cost_explorer.aws_client.session
+        ec2_client = session.client('ec2')
+        
+        # Buscar instâncias com filtro por tag Name
+        print(f"Buscando instância com nome: {instance_name}")
+        instances_response = ec2_client.describe_instances(
+            Filters=[
+                {
+                    'Name': 'tag:Name',
+                    'Values': [instance_name]
+                },
+                {
+                    'Name': 'instance-state-name',
+                    'Values': ['running', 'stopped']  # Excluir instâncias terminadas
+                }
+            ]
+        )
+        
+        # Processar resultados
+        found_instances = []
+        for reservation in instances_response.get('Reservations', []):
+            for instance in reservation.get('Instances', []):
+                found_instances.append(instance)
+        
+        if not found_instances:
+            return json.dumps({
+                "error": f"Instância com nome '{instance_name}' não encontrada",
+                "suggestion": "Verifique se o nome está correto e se a instância existe",
+                "searched_name": instance_name
+            }, ensure_ascii=False, indent=2)
+        
+        # Se encontrou múltiplas instâncias com o mesmo nome
+        if len(found_instances) > 1:
+            instances_info = []
+            for instance in found_instances:
+                instances_info.append({
+                    "instance_id": instance.get('InstanceId'),
+                    "state": instance.get('State', {}).get('Name'),
+                    "instance_type": instance.get('InstanceType'),
+                    "availability_zone": instance.get('Placement', {}).get('AvailabilityZone')
+                })
+            
+            return json.dumps({
+                "warning": f"Encontradas {len(found_instances)} instâncias com nome '{instance_name}'",
+                "instances": instances_info,
+                "suggestion": "Use o Instance ID específico para análise mais precisa"
+            }, ensure_ascii=False, indent=2)
+        
+        # Processar a instância encontrada
+        instance = found_instances[0]
+        instance_id = instance.get('InstanceId')
+        instance_type = instance.get('InstanceType')
+        state = instance.get('State', {}).get('Name')
+        availability_zone = instance.get('Placement', {}).get('AvailabilityZone')
+        
+        # 2. Extrair tags da instância
+        instance_tags = {}
+        cost_relevant_tags = []
+        
+        for tag in instance.get('Tags', []):
+            key = tag.get('Key')
+            value = tag.get('Value')
+            instance_tags[key] = value
+            
+            # Tags relevantes para análise de custo (excluir tags da AWS)
+            if not key.startswith('aws:'):
+                cost_relevant_tags.append({"key": key, "value": value})
+        
+        print(f"Instância encontrada: {instance_id} ({instance_type}) - Tags: {len(cost_relevant_tags)}")
+        
+        # 3. Buscar custos por tags relevantes
+        cost_analysis = {
+            "total_estimated_cost_usd": 0,
+            "total_estimated_cost_brl": 0,
+            "tag_based_costs": [],
+            "estimation_method": "tag_correlation"
+        }
+        
+        # Definir período de análise
+        if not end_date:
+            end_date = datetime.now().strftime('%Y-%m-%d')
+        if not start_date:
+            start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        
+        # Buscar custos por cada tag relevante
+        for tag_info in cost_relevant_tags:
+            tag_key = tag_info["key"]
+            tag_value = tag_info["value"]
+            
+            try:
+                # Buscar custos por esta tag específica
+                tag_cost_response = cost_explorer.get_cost_by_tag(tag_key, start_date, end_date)
+                
+                tag_total_cost = 0
+                matching_cost = 0
+                
+                for period in tag_cost_response.get('ResultsByTime', []):
+                    for group in period.get('Groups', []):
+                        group_tag_value = group.get('Keys', [''])[0]
+                        cost_usd = float(group.get('Metrics', {}).get('UnblendedCost', {}).get('Amount', '0'))
+                        
+                        # Limpar valor da tag (remover prefixos se houver)
+                        if '$' in group_tag_value:
+                            group_tag_value = group_tag_value.split('$')[-1]
+                        group_tag_value = group_tag_value.rstrip('$')
+                        
+                        tag_total_cost += cost_usd
+                        
+                        # Se o valor da tag corresponde exatamente
+                        if group_tag_value == tag_value:
+                            matching_cost += cost_usd
+                
+                if matching_cost > 0:
+                    cost_analysis["tag_based_costs"].append({
+                        "tag_key": tag_key,
+                        "tag_value": tag_value,
+                        "cost_usd": matching_cost,
+                        "cost_brl": matching_cost * cost_explorer.get_exchange_rate() if hasattr(cost_explorer, 'get_exchange_rate') else matching_cost * 5.5,
+                        "period_days": (datetime.strptime(end_date, '%Y-%m-%d') - datetime.strptime(start_date, '%Y-%m-%d')).days
+                    })
+                    
+                    print(f"Tag {tag_key}={tag_value}: ${matching_cost:.2f}")
+                
+            except Exception as e:
+                print(f"Erro ao buscar custo para tag {tag_key}: {e}")
+                continue
+        
+        # 4. Calcular estimativa de custo total
+        if cost_analysis["tag_based_costs"]:
+            # Se temos custos por tags, usar o maior valor (mais específico)
+            max_cost_entry = max(cost_analysis["tag_based_costs"], key=lambda x: x["cost_usd"])
+            cost_analysis["total_estimated_cost_usd"] = max_cost_entry["cost_usd"]
+            cost_analysis["total_estimated_cost_brl"] = max_cost_entry["cost_brl"]
+            cost_analysis["primary_cost_tag"] = f"{max_cost_entry['tag_key']}={max_cost_entry['tag_value']}"
+        else:
+            # Fallback: estimar com base no tipo de instância
+            try:
+                service_details = cost_explorer.get_service_details('Amazon Elastic Compute Cloud - Compute', start_date, end_date)
+                
+                for period in service_details.get('ResultsByTime', []):
+                    for group in period.get('Groups', []):
+                        usage_type = group.get('Keys', [''])[0]
+                        if instance_type in usage_type or availability_zone.replace('-', '') in usage_type:
+                            cost_usd = float(group.get('Metrics', {}).get('UnblendedCost', {}).get('Amount', '0'))
+                            if cost_usd > 0:
+                                cost_analysis["total_estimated_cost_usd"] = cost_usd
+                                cost_analysis["total_estimated_cost_brl"] = cost_usd * 5.5
+                                cost_analysis["estimation_method"] = "instance_type_correlation"
+                                break
+                
+            except Exception as e:
+                print(f"Erro na estimativa por tipo de instância: {e}")
+        
+        # 5. Montar resposta final
+        result = {
+            "instance_name": instance_name,
+            "instance_details": {
+                "instance_id": instance_id,
+                "instance_type": instance_type,
+                "state": state,
+                "availability_zone": availability_zone,
+                "tags": instance_tags
+            },
+            "cost_analysis": cost_analysis,
+            "analysis_period": {
+                "start_date": start_date,
+                "end_date": end_date,
+                "days": (datetime.strptime(end_date, '%Y-%m-%d') - datetime.strptime(start_date, '%Y-%m-%d')).days
+            },
+            "recommendations": []
+        }
+        
+        # 6. Adicionar recomendações
+        if cost_analysis["total_estimated_cost_usd"] == 0:
+            result["recommendations"].append("Não foi possível estimar o custo através das tags. Considere implementar tags mais específicas para esta instância.")
+        
+        if state == 'stopped':
+            result["recommendations"].append("Esta instância está parada, mas ainda pode ter custos de armazenamento EBS.")
+        
+        if not cost_relevant_tags:
+            result["recommendations"].append("Esta instância não possui tags de governança. Adicione tags como Environment, Project, Owner para melhor rastreamento de custos.")
+        
+        print(f"Análise concluída para {instance_name}: ${cost_analysis['total_estimated_cost_usd']:.2f}")
+        
+        return json.dumps(result, cls=JsonEncoder, ensure_ascii=False, indent=2)
+        
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        print(f"Erro na análise de custo da instância: {e}")
+        print(f"Traceback:\n{tb}")
+        
+        return json.dumps({
+            "error": f"Erro ao analisar custo da instância '{instance_name}'",
+            "details": str(e),
+            "traceback": tb,
+            "suggestion": "Verifique se a instância existe e se você tem permissões adequadas"
+        }, ensure_ascii=False, indent=2)
+
+
+@tool
+def find_instances_by_tag(tag_key: str, tag_value: str = None) -> str:
+    """
+    Busca instâncias EC2 por uma tag específica ou lista todas as instâncias com uma determinada tag.
+    
+    Args:
+        tag_key: Chave da tag (ex: 'Name', 'Environment', 'Project')
+        tag_value: Valor da tag (opcional). Se não fornecido, lista todos os valores para essa tag
+        
+    Returns:
+        JSON com instâncias encontradas e suas informações básicas
+        
+    Exemplos:
+    - find_instances_by_tag("Name", "Valhalla")
+    - find_instances_by_tag("Environment", "production")
+    - find_instances_by_tag("Project")  # Lista todas as instâncias com tag Project
+    """
+    print(f"BUSCANDO INSTÂNCIAS POR TAG: {tag_key}={tag_value or '*'}")
+    
+    try:
+        cost_explorer = CostExplorer()
+        session = cost_explorer.aws_client.session
+        ec2_client = session.client('ec2')
+        
+        # Preparar filtros
+        filters = [
+            {
+                'Name': 'instance-state-name',
+                'Values': ['running', 'stopped', 'stopping', 'starting']  # Excluir apenas terminated
+            }
+        ]
+        
+        # Adicionar filtro por tag
+        if tag_value:
+            filters.append({
+                'Name': f'tag:{tag_key}',
+                'Values': [tag_value]
+            })
+        else:
+            # Buscar todas as instâncias que têm essa tag (independente do valor)
+            filters.append({
+                'Name': f'tag-key',
+                'Values': [tag_key]
+            })
+        
+        print(f"Aplicando filtros: {filters}")
+        instances_response = ec2_client.describe_instances(Filters=filters)
+        
+        # Processar resultados
+        instances_info = []
+        tag_values_found = set()
+        
+        for reservation in instances_response.get('Reservations', []):
+            for instance in reservation.get('Instances', []):
+                # Extrair informações básicas
+                instance_id = instance.get('InstanceId')
+                instance_type = instance.get('InstanceType')
+                state = instance.get('State', {}).get('Name')
+                availability_zone = instance.get('Placement', {}).get('AvailabilityZone')
+                launch_time = instance.get('LaunchTime')
+                
+                # Processar tags
+                instance_tags = {}
+                target_tag_value = None
+                
+                for tag in instance.get('Tags', []):
+                    key = tag.get('Key')
+                    value = tag.get('Value')
+                    instance_tags[key] = value
+                    
+                    if key == tag_key:
+                        target_tag_value = value
+                        tag_values_found.add(value)
+                
+                # Informações da instância
+                instance_info = {
+                    "instance_id": instance_id,
+                    "instance_type": instance_type,
+                    "state": state,
+                    "availability_zone": availability_zone,
+                    "launch_time": launch_time.isoformat() if launch_time else None,
+                    "target_tag_value": target_tag_value,
+                    "all_tags": instance_tags
+                }
+                
+                instances_info.append(instance_info)
+        
+        # Montar resposta
+        result = {
+            "search_criteria": {
+                "tag_key": tag_key,
+                "tag_value": tag_value,
+                "search_type": "specific_value" if tag_value else "all_values"
+            },
+            "results_summary": {
+                "total_instances_found": len(instances_info),
+                "unique_tag_values": list(tag_values_found) if not tag_value else None
+            },
+            "instances": instances_info
+        }
+        
+        # Adicionar insights
+        if not instances_info:
+            result["message"] = f"Nenhuma instância encontrada com a tag '{tag_key}'" + (f"='{tag_value}'" if tag_value else "")
+            result["suggestions"] = [
+                f"Verifique se a tag '{tag_key}' existe nas suas instâncias",
+                "Use find_instances_by_tag(tag_key) para ver todos os valores disponíveis para esta tag"
+            ]
+        elif not tag_value and len(tag_values_found) > 1:
+            result["insights"] = [
+                f"Encontrados {len(tag_values_found)} valores diferentes para a tag '{tag_key}'",
+                "Use um valor específico para análise mais precisa de custos"
+            ]
+        
+        print(f"Busca concluída: {len(instances_info)} instâncias encontradas")
+        
+        return json.dumps(result, cls=JsonEncoder, ensure_ascii=False, indent=2)
+        
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        print(f"Erro na busca de instâncias por tag: {e}")
+        print(f"Traceback:\n{tb}")
+        
+        return json.dumps({
+            "error": f"Erro ao buscar instâncias pela tag '{tag_key}'",
+            "details": str(e),
+            "traceback": tb,
+            "suggestion": "Verifique se você tem permissões para listar instâncias EC2"
+        }, ensure_ascii=False, indent=2)
+
+
+ 

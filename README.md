@@ -317,3 +317,8 @@ Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para detalhes.
 ---
 
 **💡 Desenvolvido com IA para análise inteligente de custos AWS**
+
+
+TODOS:
+- Analise de CPU das maquinas
+- Verificar trafego das maquinas para entender uso delas
