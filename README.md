@@ -187,8 +187,9 @@ python exemplos/teste_conexao.py
 
 ## 🔧 **Ferramentas do Agente de IA**
 
-O agente possui **15+ ferramentas especializadas**:
+O agente possui **18+ ferramentas especializadas**:
 
+### **📊 Análise de Custos (12 ferramentas)**
 | **Ferramenta** | **Descrição** |
 |----------------|---------------|
 | `get_top_services` | Top serviços mais caros |
@@ -198,9 +199,62 @@ O agente possui **15+ ferramentas especializadas**:
 | `discover_account_resources` | Discovery automático de recursos |
 | `validate_and_analyze_service` | Validação e análise de serviços |
 | `get_dimension_values` | Valores de dimensões específicas |
+| `get_instance_cost_by_name` | Custo de instância EC2 por nome |
+| `find_instances_by_tag` | Busca instâncias por tags |
+| `audit_governance_tags` | Auditoria de governança de tags |
+| `aws_ec2_call` | Chamadas dinâmicas para API EC2 |
+| `get_account_context_data` | Contexto completo da conta |
+
+### **⚡ Performance & Tráfego (3 ferramentas - NOVO!)**
+| **Ferramenta** | **Descrição** |
+|----------------|---------------|
+| `get_instance_performance_metrics` | **Análise completa de performance EC2** |
+| `analyze_ec2_fleet_performance` | **Análise comparativa de múltiplas instâncias** |
+| `get_network_traffic_analysis` | **Análise detalhada de tráfego de rede** |
+
+### **🛠️ Utilitárias (4 ferramentas)**
+| **Ferramenta** | **Descrição** |
+|----------------|---------------|
 | `format_currency` | Conversão USD→BRL automática |
 | `get_current_date` | Data atual para consultas |
-| `get_account_context_data` | Contexto completo da conta |
+| `get_date_from_period` | Cálculo de datas por período |
+| `all_dimensions` | Lista todas as dimensões AWS |
+
+## 🚀 **NOVO: Análise de Performance e Tráfego EC2**
+
+### **🔍 Capacidades Adicionadas:**
+
+- **📈 Métricas CloudWatch em tempo real**: CPU, memória, rede, disco
+- **🌐 Análise de tráfego de rede**: Bandwidth, custos de transferência
+- **🏭 Fleet Analysis**: Comparação de performance entre instâncias
+- **🚨 Alertas inteligentes**: CPU alta/baixa, tráfego excessivo
+- **💰 Correlação custo x performance**: Rightsizing baseado em dados
+- **🎯 Recomendações acionáveis**: Otimização automática
+
+### **📊 Exemplos de Consultas de Performance:**
+
+```bash
+# Análise de instância específica
+"Analise a performance da instância Valhalla nas últimas 48 horas"
+"Qual o tráfego de rede da instância i-123abc nos últimos 7 dias?"
+
+# Análise de frota
+"Compare performance de todas as instâncias do ambiente production"
+"Identifique instâncias subutilizadas no projeto web-app"
+
+# Otimização
+"Quais instâncias posso reduzir para economizar custos?"
+"Analise o tráfego de rede para otimizar custos de transferência"
+```
+
+### **🎯 Benefícios da Análise de Performance:**
+
+| **Antes** | **Agora** |
+|-----------|-----------|
+| ❌ Apenas análise de custos | ✅ **Custos + Performance integrados** |
+| ❌ Decisões baseadas só em preço | ✅ **Rightsizing baseado em dados reais** |
+| ❌ Reativo a problemas | ✅ **Alertas proativos de sub/superutilização** |
+| ❌ Sem visibilidade de tráfego | ✅ **Análise completa de bandwidth e custos** |
 
 ## 📁 **Estrutura Detalhada do Projeto**
 
@@ -310,15 +364,13 @@ Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para detalhes.
 ## 🔗 **Links Úteis**
 
 - [AWS Cost Explorer Documentation](https://docs.aws.amazon.com/cost-explorer/)
+- [AWS CloudWatch Documentation](https://docs.aws.amazon.com/cloudwatch/)
 - [Haystack AI Framework](https://haystack.deepset.ai/)
 - [OpenAI API Documentation](https://platform.openai.com/docs)
 - [Boto3 Documentation](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html)
 
 ---
 
-**💡 Desenvolvido com IA para análise inteligente de custos AWS**
+**💡 Desenvolvido com IA para análise inteligente de custos e performance AWS**
 
-
-TODOS:
-- Analise de CPU das maquinas
-- Verificar trafego das maquinas para entender uso delas
+*O Cloud Insights agora oferece observabilidade completa: custos + performance em uma única plataforma.*

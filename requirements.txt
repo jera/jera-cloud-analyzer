@@ -4,3 +4,5 @@ boto3>=1.26.0
 botocore>=1.29.0
 python-dateutil>=2.8.2
 python-dotenv
+# CloudWatch dependencies (já incluído no boto3, mas explicitando para documentação)
+# cloudwatch metrics são acessadas via boto3.client('cloudwatch')
