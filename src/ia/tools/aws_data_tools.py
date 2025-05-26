@@ -2107,4 +2107,240 @@ def analyze_multiple_tags_costs(tag_keys: str, start_date: Optional[str] = None,
         }, ensure_ascii=False, indent=2)
 
 
+@tool
+def analyze_tag_specific_values(tag_key: str, tag_values: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> str:
+    """
+    Analisa custos de valores específicos de uma tag para um período determinado.
+    
+    Args:
+        tag_key: Chave da tag (ex: "servers", "Environment", "Project")
+        tag_values: Lista de valores específicos separados por vírgula (ex: "valhalla-support,valhalla-main,jormungand")
+        start_date: Data inicial no formato YYYY-MM-DD (opcional, padrão: 30 dias atrás)
+        end_date: Data final no formato YYYY-MM-DD (opcional, padrão: hoje)
+        
+    Returns:
+        JSON com análise de custos para os valores específicos da tag
+        
+    Exemplos:
+    - analyze_tag_specific_values("servers", "valhalla-support,valhalla-main,jormungand")
+    - analyze_tag_specific_values("Environment", "production,staging", "2024-05-01", "2024-05-31")
+    - analyze_tag_specific_values("Project", "web-app,mobile-app,api-service")
+    """
+    print(f"ANALISANDO TAG '{tag_key}' COM VALORES ESPECÍFICOS: {tag_values}")
+    
+    try:
+        # Processar lista de valores
+        values_list = [value.strip() for value in tag_values.split(',') if value.strip()]
+        
+        if not values_list:
+            return json.dumps({
+                "error": "Nenhum valor válido fornecido",
+                "suggestion": "Forneça uma lista de valores separados por vírgula",
+                "example": "valhalla-support,valhalla-main,jormungand"
+            }, ensure_ascii=False, indent=2)
+        
+        cost_explorer = CostExplorer()
+        
+        # Definir período de análise
+        if not end_date:
+            end_date = datetime.now().strftime('%Y-%m-%d')
+        if not start_date:
+            start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        
+        # Validar e ajustar as datas
+        validated_start, validated_end = validate_and_adjust_date_range(start_date, end_date)
+        
+        analysis_result = {
+            "analysis_timestamp": datetime.now().isoformat(),
+            "analysis_period": {
+                "start_date": validated_start,
+                "end_date": validated_end,
+                "days": (datetime.strptime(validated_end, '%Y-%m-%d') - datetime.strptime(validated_start, '%Y-%m-%d')).days
+            },
+            "tag_key": tag_key,
+            "requested_values": values_list,
+            "summary": {
+                "total_values_requested": len(values_list),
+                "values_with_costs": 0,
+                "values_without_costs": 0,
+                "total_cost_usd": 0.0,
+                "total_cost_brl": 0.0
+            },
+            "value_analysis": [],
+            "other_values_found": []
+        }
+        
+        print(f"Buscando custos para tag '{tag_key}' no período {validated_start} a {validated_end}")
+        
+        # Buscar todos os custos para esta tag
+        try:
+            tag_cost_response = cost_explorer.get_cost_by_tag(tag_key, validated_start, validated_end)
+            
+            if not tag_cost_response.get('ResultsByTime'):
+                return json.dumps({
+                    "error": f"Nenhum dado encontrado para a tag '{tag_key}' no período especificado",
+                    "tag_key": tag_key,
+                    "period": f"{validated_start} a {validated_end}",
+                    "suggestions": [
+                        f"Verifique se a tag '{tag_key}' existe nos recursos",
+                        "Considere usar um período de análise maior",
+                        "Verifique se os recursos estão sendo tagueados corretamente"
+                    ]
+                }, ensure_ascii=False, indent=2)
+            
+            # Coletar todos os valores encontrados para esta tag
+            all_tag_values = {}
+            
+            for period in tag_cost_response['ResultsByTime']:
+                for group in period.get('Groups', []):
+                    raw_tag_value = group.get('Keys', [''])[0]
+                    cost_usd = float(group.get('Metrics', {}).get('UnblendedCost', {}).get('Amount', '0'))
+                    
+                    # Limpar valor da tag (remover prefixos se houver)
+                    tag_value = raw_tag_value
+                    if '$' in tag_value:
+                        tag_value = tag_value.split('$')[-1]
+                    tag_value = tag_value.rstrip('$')
+                    
+                    # Ignorar valores vazios ou "NoTag"
+                    if tag_value and tag_value.lower() not in ['notag', 'no tag', '']:
+                        if tag_value not in all_tag_values:
+                            all_tag_values[tag_value] = 0.0
+                        all_tag_values[tag_value] += cost_usd
+            
+            print(f"Valores encontrados para tag '{tag_key}': {list(all_tag_values.keys())}")
+            
+            # Analisar valores solicitados
+            found_values = set()
+            
+            for requested_value in values_list:
+                value_analysis = {
+                    "value": requested_value,
+                    "found": False,
+                    "cost_usd": 0.0,
+                    "cost_brl": 0.0,
+                    "percentage_of_total": 0.0,
+                    "exact_match": False,
+                    "similar_matches": []
+                }
+                
+                # Busca exata
+                if requested_value in all_tag_values:
+                    value_analysis["found"] = True
+                    value_analysis["exact_match"] = True
+                    value_analysis["cost_usd"] = all_tag_values[requested_value]
+                    value_analysis["cost_brl"] = value_analysis["cost_usd"] * 5.5
+                    found_values.add(requested_value)
+                    
+                    analysis_result["summary"]["values_with_costs"] += 1
+                    analysis_result["summary"]["total_cost_usd"] += value_analysis["cost_usd"]
+                    analysis_result["summary"]["total_cost_brl"] += value_analysis["cost_brl"]
+                    
+                    print(f"✅ Valor '{requested_value}': ${value_analysis['cost_usd']:.2f}")
+                else:
+                    # Busca por similaridade (case-insensitive e partial match)
+                    similar_matches = []
+                    for actual_value in all_tag_values.keys():
+                        if (requested_value.lower() in actual_value.lower() or 
+                            actual_value.lower() in requested_value.lower()):
+                            similar_matches.append({
+                                "value": actual_value,
+                                "cost_usd": all_tag_values[actual_value],
+                                "cost_brl": all_tag_values[actual_value] * 5.5
+                            })
+                    
+                    if similar_matches:
+                        value_analysis["similar_matches"] = similar_matches
+                        print(f"🔍 Valor '{requested_value}' não encontrado exatamente, mas encontradas similaridades: {[m['value'] for m in similar_matches]}")
+                    else:
+                        print(f"❌ Valor '{requested_value}' não encontrado")
+                    
+                    analysis_result["summary"]["values_without_costs"] += 1
+                
+                analysis_result["value_analysis"].append(value_analysis)
+            
+            # Calcular percentuais
+            total_cost = analysis_result["summary"]["total_cost_usd"]
+            if total_cost > 0:
+                for value_data in analysis_result["value_analysis"]:
+                    if value_data["found"]:
+                        value_data["percentage_of_total"] = round((value_data["cost_usd"] / total_cost) * 100, 1)
+            
+            # Identificar outros valores não solicitados (para contexto)
+            other_values = []
+            for value, cost in all_tag_values.items():
+                if value not in found_values:
+                    other_values.append({
+                        "value": value,
+                        "cost_usd": round(cost, 2),
+                        "cost_brl": round(cost * 5.5, 2)
+                    })
+            
+            # Ordenar outros valores por custo e limitar a 10
+            other_values.sort(key=lambda x: x["cost_usd"], reverse=True)
+            analysis_result["other_values_found"] = other_values[:10]
+            
+            # Gerar insights e recomendações
+            analysis_result["insights"] = []
+            analysis_result["recommendations"] = []
+            
+            if analysis_result["summary"]["values_with_costs"] == 0:
+                analysis_result["insights"].append(f"Nenhum dos valores solicitados foi encontrado para a tag '{tag_key}'")
+                analysis_result["recommendations"].extend([
+                    f"Verifique se os valores estão corretos para a tag '{tag_key}'",
+                    "Use a busca por similaridade para encontrar valores próximos",
+                    f"Considere verificar todos os valores disponíveis para a tag '{tag_key}'"
+                ])
+            else:
+                # Identificar valor mais caro
+                values_with_costs = [v for v in analysis_result["value_analysis"] if v["found"]]
+                if values_with_costs:
+                    most_expensive = max(values_with_costs, key=lambda x: x["cost_usd"])
+                    analysis_result["insights"].append(f"Valor mais caro: '{most_expensive['value']}' com ${most_expensive['cost_usd']:.2f}")
+                
+                # Recomendações baseadas nos resultados
+                if analysis_result["summary"]["total_cost_usd"] > 50:
+                    analysis_result["recommendations"].append("Considere implementar políticas de cost optimization para os valores com maior custo")
+                
+                if analysis_result["summary"]["values_without_costs"] > 0:
+                    analysis_result["recommendations"].append(f"{analysis_result['summary']['values_without_costs']} valores não encontrados - verifique se estão sendo aplicados corretamente")
+                
+                if len(other_values) > 0:
+                    analysis_result["recommendations"].append(f"Existem {len(other_values)} outros valores para a tag '{tag_key}' que não foram solicitados")
+            
+            # Adicionar estatísticas da tag
+            analysis_result["tag_statistics"] = {
+                "total_unique_values": len(all_tag_values),
+                "total_cost_all_values_usd": sum(all_tag_values.values()),
+                "total_cost_all_values_brl": sum(all_tag_values.values()) * 5.5,
+                "requested_values_coverage_percentage": round((total_cost / sum(all_tag_values.values())) * 100, 1) if sum(all_tag_values.values()) > 0 else 0
+            }
+            
+            print(f"Análise concluída: {analysis_result['summary']['values_with_costs']}/{len(values_list)} valores encontrados")
+            
+            return json.dumps(analysis_result, cls=JsonEncoder, ensure_ascii=False, indent=2)
+            
+        except Exception as e:
+            print(f"Erro ao buscar custos para tag '{tag_key}': {e}")
+            return json.dumps({
+                "error": f"Erro ao buscar custos para a tag '{tag_key}'",
+                "details": str(e),
+                "tag_key": tag_key,
+                "requested_values": values_list
+            }, ensure_ascii=False, indent=2)
+        
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        print(f"Erro na análise de valores específicos da tag: {e}")
+        print(f"Traceback:\n{tb}")
+        
+        return json.dumps({
+            "error": f"Erro na análise de valores específicos da tag",
+            "details": str(e),
+            "traceback": tb,
+            "suggestion": "Verifique se a tag e valores estão no formato correto"
+        }, ensure_ascii=False, indent=2)
+
+
  

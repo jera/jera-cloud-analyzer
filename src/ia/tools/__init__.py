@@ -18,7 +18,8 @@ from src.ia.tools.aws_data_tools import (
     find_instances_by_tag,
     audit_governance_tags,
     identify_orphaned_resources,
-    analyze_multiple_tags_costs
+    analyze_multiple_tags_costs,
+    analyze_tag_specific_values
 )
 
 from src.ia.tools.utility_tools import (
@@ -59,6 +60,7 @@ ALL_TOOLS = [
     audit_governance_tags,
     identify_orphaned_resources,
     analyze_multiple_tags_costs,
+    analyze_tag_specific_values,
     format_currency,
     get_current_date,
     get_date_from_period,
@@ -90,6 +92,7 @@ __all__ = [
     'audit_governance_tags',
     'identify_orphaned_resources',
     'analyze_multiple_tags_costs',
+    'analyze_tag_specific_values',
     'format_currency',
     'get_current_date',
     'get_date_from_period',
