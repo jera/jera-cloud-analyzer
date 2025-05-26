@@ -45,7 +45,7 @@ Com `aws_ec2_call()` você pode executar análises detalhadas:
 - `describe_vpcs`, `describe_subnets`: Analisar arquitetura de rede
 - `describe_security_groups`: Verificar grupos de segurança
 - `describe_nat_gateways`: Analisar NAT Gateways (custosos)
-- `describe_load_balancers`: Verificar Application/Network Load Balancers
+- `describe_load_balancers`: Verificar Application/Network Load Balancers (usa cliente ELBv2 automaticamente)
 
 **Correlação com Custos:**
 - Use os dados retornados para correlacionar recursos específicos com `get_service_details()`

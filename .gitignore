@@ -9,3 +9,8 @@ wheels/
 # Virtual environments
 .venv
 .env
+
+# AWS data logs (contain sensitive billing information)
+aws_raw_data.log
+aws_raw_data.log.*
+*.log

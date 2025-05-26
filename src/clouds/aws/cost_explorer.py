@@ -1,11 +1,27 @@
 """
 Módulo para interagir com AWS Cost Explorer e obter dados de custos.
 """
+import logging
+import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
 from src.clouds.aws.client import AWSClient
 
+# Configurar logger específico para dados brutos da AWS
+aws_data_logger = logging.getLogger('aws_raw_data')
+aws_data_logger.setLevel(logging.INFO)
+
+# Handler para arquivo de log
+if not aws_data_logger.handlers:
+    handler = logging.FileHandler('aws_raw_data.log', encoding='utf-8')
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - [%(levelname)s] - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    handler.setFormatter(formatter)
+    aws_data_logger.addHandler(handler)
+    aws_data_logger.propagate = False
 
 class CostExplorer:
     """
@@ -21,6 +37,25 @@ class CostExplorer:
         """
         self.aws_client = aws_client or AWSClient()
         self.client = self.aws_client.get_client('ce')
+        
+    def _log_raw_aws_data(self, operation: str, parameters: Dict[str, Any], raw_response: Dict[str, Any]) -> None:
+        """
+        Loga os dados brutos retornados pela AWS para auditoria.
+        
+        Args:
+            operation: Nome da operação AWS executada
+            parameters: Parâmetros enviados para a AWS
+            raw_response: Resposta bruta da AWS
+        """
+        log_entry = {
+            'timestamp': datetime.now().isoformat(),
+            'operation': operation,
+            'parameters': parameters,
+            'raw_response': raw_response,
+            'account_id': getattr(self.aws_client, 'account_id', 'unknown'),
+            'region': getattr(self.aws_client, 'region', 'unknown')
+        }
+        aws_data_logger.info(f"RAW_DATA: {json.dumps(log_entry, default=str, ensure_ascii=False)}")
         
     def get_cost_by_service(self, start_date: Optional[str] = None, 
                            end_date: Optional[str] = None,
@@ -38,20 +73,27 @@ class CostExplorer:
         """
         start, end = self._normalize_dates(start_date, end_date)
         
-        return self.client.get_cost_and_usage(
-            TimePeriod={
+        parameters = {
+            'TimePeriod': {
                 'Start': start,
                 'End': end
             },
-            Granularity=granularity,
-            Metrics=['UnblendedCost'],
-            GroupBy=[
+            'Granularity': granularity,
+            'Metrics': ['UnblendedCost'],
+            'GroupBy': [
                 {
                     'Type': 'DIMENSION',
                     'Key': 'SERVICE'
                 }
             ]
-        )
+        }
+        
+        raw_response = self.client.get_cost_and_usage(**parameters)
+        
+        # Log dos dados brutos para auditoria
+        self._log_raw_aws_data('get_cost_and_usage_by_service', parameters, raw_response)
+        
+        return raw_response
     
     def get_cost_by_tag(self, tag_key: str, start_date: Optional[str] = None, 
                         end_date: Optional[str] = None, 
@@ -70,20 +112,27 @@ class CostExplorer:
         """
         start, end = self._normalize_dates(start_date, end_date)
         
-        return self.client.get_cost_and_usage(
-            TimePeriod={
+        parameters = {
+            'TimePeriod': {
                 'Start': start,
                 'End': end
             },
-            Granularity=granularity,
-            Metrics=['UnblendedCost'],
-            GroupBy=[
+            'Granularity': granularity,
+            'Metrics': ['UnblendedCost'],
+            'GroupBy': [
                 {
                     'Type': 'TAG',
                     'Key': tag_key
                 }
             ]
-        )
+        }
+        
+        raw_response = self.client.get_cost_and_usage(**parameters)
+        
+        # Log dos dados brutos para auditoria
+        self._log_raw_aws_data('get_cost_and_usage_by_tag', parameters, raw_response)
+        
+        return raw_response
     
     def get_service_details(self, service: str, start_date: Optional[str] = None, 
                            end_date: Optional[str] = None,
@@ -102,26 +151,33 @@ class CostExplorer:
         """
         start, end = self._normalize_dates(start_date, end_date)
         
-        return self.client.get_cost_and_usage(
-            TimePeriod={
+        parameters = {
+            'TimePeriod': {
                 'Start': start,
                 'End': end
             },
-            Granularity=granularity,
-            Metrics=['UnblendedCost'],
-            Filter={
+            'Granularity': granularity,
+            'Metrics': ['UnblendedCost'],
+            'Filter': {
                 'Dimensions': {
                     'Key': 'SERVICE',
                     'Values': [service]
                 }
             },
-            GroupBy=[
+            'GroupBy': [
                 {
                     'Type': 'DIMENSION',
                     'Key': 'USAGE_TYPE'
                 }
             ]
-        )
+        }
+        
+        raw_response = self.client.get_cost_and_usage(**parameters)
+        
+        # Log dos dados brutos para auditoria
+        self._log_raw_aws_data('get_cost_and_usage_service_details', parameters, raw_response)
+        
+        return raw_response
     
     def get_cost_forecast(self, start_date: Optional[str] = None, 
                          end_date: Optional[str] = None,
@@ -146,14 +202,21 @@ class CostExplorer:
         start = start_date or today
         end = end_date or future
         
-        return self.client.get_cost_forecast(
-            TimePeriod={
+        parameters = {
+            'TimePeriod': {
                 'Start': start,
                 'End': end
             },
-            Granularity=granularity,
-            Metric=metric
-        )
+            'Granularity': granularity,
+            'Metric': metric
+        }
+        
+        raw_response = self.client.get_cost_forecast(**parameters)
+        
+        # Log dos dados brutos para auditoria
+        self._log_raw_aws_data('get_cost_forecast', parameters, raw_response)
+        
+        return raw_response
     
     def get_tags(self) -> Dict[str, Any]:
         """
@@ -162,13 +225,20 @@ class CostExplorer:
         Returns:
             Lista de chaves de tags ativas
         """
-        return self.client.get_tags(
-            SearchString='',
-            TimePeriod={
+        parameters = {
+            'SearchString': '',
+            'TimePeriod': {
                 'Start': (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'),
                 'End': datetime.now().strftime('%Y-%m-%d')
             }
-        )
+        }
+        
+        raw_response = self.client.get_tags(**parameters)
+        
+        # Log dos dados brutos para auditoria
+        self._log_raw_aws_data('get_tags', parameters, raw_response)
+        
+        return raw_response
     
     def get_dimension_values(self, dimension: str) -> Dict[str, Any]:
         """
@@ -180,14 +250,21 @@ class CostExplorer:
         Returns:
             Valores da dimensão solicitada
         """
-        return self.client.get_dimension_values(
-            SearchString='',
-            TimePeriod={
+        parameters = {
+            'SearchString': '',
+            'TimePeriod': {
                 'Start': (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'),
                 'End': datetime.now().strftime('%Y-%m-%d')
             },
-            Dimension=dimension
-        )
+            'Dimension': dimension
+        }
+        
+        raw_response = self.client.get_dimension_values(**parameters)
+        
+        # Log dos dados brutos para auditoria
+        self._log_raw_aws_data('get_dimension_values', parameters, raw_response)
+        
+        return raw_response
     
     def get_top_services(self, start_date: Optional[str] = None, 
                         end_date: Optional[str] = None, 
@@ -203,7 +280,7 @@ class CostExplorer:
         Returns:
             Lista dos serviços mais caros ordenados por custo descendente
         """
-        # Usar o método existente get_cost_by_service
+        # Usar o método existente get_cost_by_service (já faz log internamente)
         cost_data = self.get_cost_by_service(start_date, end_date)
         
         # Processar os dados para extrair top serviços
@@ -240,7 +317,27 @@ class CostExplorer:
         # Ordenar por custo total (descendente) e limitar
         services_costs.sort(key=lambda x: x['total_cost'], reverse=True)
         
-        return services_costs[:limit]
+        top_services = services_costs[:limit]
+        
+        # Log dos dados processados para comparação
+        processed_data = {
+            'operation': 'get_top_services_processed',
+            'input_periods': len(cost_data.get('ResultsByTime', [])),
+            'total_services_found': len(services_costs),
+            'top_services_returned': len(top_services),
+            'top_services_summary': [
+                {
+                    'service': service['service_name'],
+                    'total_cost': service['total_cost'],
+                    'currency': service['currency']
+                }
+                for service in top_services
+            ]
+        }
+        
+        aws_data_logger.info(f"PROCESSED_DATA: {json.dumps(processed_data, default=str, ensure_ascii=False)}")
+        
+        return top_services
     
     def _normalize_dates(self, start_date: Optional[str], 
                         end_date: Optional[str]) -> tuple:

@@ -716,41 +716,28 @@ def aws_ec2_call(method: str, instance_ids: Optional[str] = None, volume_ids: Op
                  vpc_ids: Optional[str] = None, subnet_ids: Optional[str] = None, 
                  group_ids: Optional[str] = None, region_name: Optional[str] = None) -> str:
     """
-    Executa chamadas dinâmicas para a API do Amazon EC2 via boto3.
+    Executa chamadas dinâmicas para EC2 e outros serviços AWS baseado no método solicitado.
     
     Args:
-        method: Nome do método EC2 a ser executado (ex: 'describe_instances', 'describe_volumes')
-        instance_ids: IDs específicos de instâncias (separados por vírgula, ex: 'i-123,i-456')
-        volume_ids: IDs específicos de volumes (separados por vírgula, ex: 'vol-123,vol-456') 
-        vpc_ids: IDs específicos de VPCs (separados por vírgula)
-        subnet_ids: IDs específicos de subnets (separados por vírgula)
-        group_ids: IDs específicos de grupos de segurança (separados por vírgula)
-        region_name: Nome da região específica (opcional)
+        method: Método da API AWS a ser executado
+        instance_ids: IDs de instâncias EC2 (separados por vírgula, opcional)
+        volume_ids: IDs de volumes EBS (separados por vírgula, opcional)
+        vpc_ids: IDs de VPCs (separados por vírgula, opcional)
+        subnet_ids: IDs de subnets (separados por vírgula, opcional)
+        group_ids: IDs de security groups (separados por vírgula, opcional)
+        region_name: Região AWS específica (opcional)
         
     Returns:
-        JSON com os dados retornados pela API do EC2
+        JSON com a resposta da API AWS correspondente ao método solicitado
         
-    Exemplos de uso:
-    - aws_ec2_call("describe_instances") - Lista todas as instâncias
-    - aws_ec2_call("describe_instances", instance_ids="i-1234567890abcdef0") - Instância específica
-    - aws_ec2_call("describe_volumes") - Lista todos os volumes EBS
-    - aws_ec2_call("describe_addresses") - Lista todos os Elastic IPs
-    
-    Métodos principais:
-    - describe_instances: Lista instâncias EC2
-    - describe_volumes: Lista volumes EBS  
-    - describe_addresses: Lista Elastic IPs
-    - describe_vpcs: Lista VPCs
-    - describe_subnets: Lista subnets
-    - describe_security_groups: Lista grupos de segurança
-    - describe_snapshots: Lista snapshots
-    - describe_nat_gateways: Lista NAT gateways
-    - describe_reserved_instances: Lista instâncias reservadas
+    Exemplos:
+    - aws_ec2_call("describe_instances")
+    - aws_ec2_call("describe_volumes", volume_ids="vol-123,vol-456")
+    - aws_ec2_call("describe_load_balancers")  # Será redirecionado para ELBv2
     """
-    # Construir parâmetros dinamicamente
+    # Preparar parâmetros dinâmicos baseados no método
     parameters = {}
     
-    # Converter strings separadas por vírgula em listas
     if instance_ids:
         parameters['InstanceIds'] = [id.strip() for id in instance_ids.split(',')]
     if volume_ids:
@@ -762,51 +749,33 @@ def aws_ec2_call(method: str, instance_ids: Optional[str] = None, volume_ids: Op
     if group_ids:
         parameters['GroupIds'] = [id.strip() for id in group_ids.split(',')]
     
-    print(f"AWS EC2 CALL - Method: {method}, Parameters: {parameters}")
-    
-    # Whitelist de métodos permitidos para segurança
-    ALLOWED_METHODS = {
-        # Instâncias e recursos compute
+    # Métodos permitidos para EC2
+    EC2_METHODS = {
+        # Instâncias 
         'describe_instances',
-        'describe_instance_types',
-        'describe_instance_attribute',
         'describe_instance_status',
-        'describe_reserved_instances',
-        'describe_scheduled_instances',
-        'describe_spot_instances',
-        'describe_spot_price_history',
-        'describe_placement_groups',
+        'describe_instance_types',
         
-        # Storage
+        # Volumes e storage
         'describe_volumes',
-        'describe_volume_status',
-        'describe_volume_attribute',
         'describe_snapshots',
-        'describe_snapshot_attribute',
-        
-        # Images
         'describe_images',
-        'describe_image_attribute',
         
         # Networking
         'describe_vpcs',
         'describe_subnets',
         'describe_security_groups',
         'describe_network_interfaces',
-        'describe_addresses',
+        'describe_route_tables',
         'describe_internet_gateways',
         'describe_nat_gateways',
-        'describe_route_tables',
+        'describe_vpc_peering_connections',
+        'describe_addresses',
         'describe_network_acls',
         'describe_vpc_endpoints',
         'describe_customer_gateways',
         'describe_vpn_gateways',
         'describe_vpn_connections',
-        
-        # Load Balancers (ELBv2)
-        'describe_load_balancers',
-        'describe_target_groups',
-        'describe_listeners',
         
         # Key pairs
         'describe_key_pairs',
@@ -823,38 +792,62 @@ def aws_ec2_call(method: str, instance_ids: Optional[str] = None, volume_ids: Op
         'describe_instance_credit_specifications'
     }
     
-    if method not in ALLOWED_METHODS:
-        return json.dumps({
-            "error": f"Método '{method}' não permitido",
-            "allowed_methods": sorted(list(ALLOWED_METHODS))
-        }, ensure_ascii=False, indent=2)
+    # Métodos permitidos para ELBv2 (Load Balancers)
+    ELB_METHODS = {
+        'describe_load_balancers',
+        'describe_target_groups',
+        'describe_listeners',
+        'describe_target_health'
+    }
     
+    # Determinar qual cliente usar
+    if method in EC2_METHODS:
+        client_type = 'ec2'
+        allowed_methods = EC2_METHODS
+    elif method in ELB_METHODS:
+        client_type = 'elbv2'
+        allowed_methods = ELB_METHODS
+    else:
+        return json.dumps({
+            "error": f"Método '{method}' não reconhecido",
+            "ec2_methods": sorted(list(EC2_METHODS)),
+            "elb_methods": sorted(list(ELB_METHODS))
+        }, ensure_ascii=False, indent=2)
+
     try:
         cost_explorer = CostExplorer()
         
-        # Cria cliente EC2 usando a mesma sessão do Cost Explorer
+        # Criar o cliente apropriado usando a mesma sessão do Cost Explorer
         session = cost_explorer.aws_client.session
-        ec2_client = session.client('ec2')
+        aws_client = session.client(client_type)
         
         # Remove parâmetros vazios para evitar erros
         clean_parameters = {k: v for k, v in parameters.items() if v is not None and v != []}
         
-        print(f"EC2 Call - Executing: {method} with params: {clean_parameters}")
+        print(f"{client_type.upper()} Call - Executing: {method} with params: {clean_parameters}")
         
         # Executa o método dinamicamente
-        ec2_method = getattr(ec2_client, method)
-        response = ec2_method(**clean_parameters)
+        aws_method = getattr(aws_client, method)
+        response = aws_method(**clean_parameters)
         
         # Debug: verificar se há dados
-        print(f"EC2 Call - Raw response keys: {list(response.keys())}")
-        if method == 'describe_instances' and 'Reservations' in response:
-            print(f"EC2 Call - Found {len(response['Reservations'])} reservations")
-            total_instances = sum(len(res.get('Instances', [])) for res in response['Reservations'])
-            print(f"EC2 Call - Total instances: {total_instances}")
-        elif method == 'describe_volumes' and 'Volumes' in response:
-            print(f"EC2 Call - Found {len(response['Volumes'])} volumes")
-        elif method == 'describe_addresses' and 'Addresses' in response:
-            print(f"EC2 Call - Found {len(response['Addresses'])} addresses")
+        print(f"{client_type.upper()} Call - Raw response keys: {list(response.keys())}")
+        
+        # Debug específico para cada tipo de cliente
+        if client_type == 'ec2':
+            if method == 'describe_instances' and 'Reservations' in response:
+                print(f"EC2 Call - Found {len(response['Reservations'])} reservations")
+                total_instances = sum(len(res.get('Instances', [])) for res in response['Reservations'])
+                print(f"EC2 Call - Total instances: {total_instances}")
+            elif method == 'describe_volumes' and 'Volumes' in response:
+                print(f"EC2 Call - Found {len(response['Volumes'])} volumes")
+            elif method == 'describe_addresses' and 'Addresses' in response:
+                print(f"EC2 Call - Found {len(response['Addresses'])} addresses")
+        elif client_type == 'elbv2':
+            if method == 'describe_load_balancers' and 'LoadBalancers' in response:
+                print(f"ELB Call - Found {len(response['LoadBalancers'])} load balancers")
+            elif method == 'describe_target_groups' and 'TargetGroups' in response:
+                print(f"ELB Call - Found {len(response['TargetGroups'])} target groups")
         
         # Remove ResponseMetadata para limpar o output
         if 'ResponseMetadata' in response:
@@ -862,26 +855,34 @@ def aws_ec2_call(method: str, instance_ids: Optional[str] = None, volume_ids: Op
         
         # Verificar se há dados úteis na resposta
         has_data = False
-        if method == 'describe_instances' and response.get('Reservations'):
-            has_data = any(res.get('Instances', []) for res in response['Reservations'])
-        elif method == 'describe_volumes' and response.get('Volumes'):
-            has_data = len(response['Volumes']) > 0
-        elif method == 'describe_addresses' and response.get('Addresses'):
-            has_data = len(response['Addresses']) > 0
-        elif method in ['describe_vpcs', 'describe_subnets', 'describe_security_groups'] and response:
-            # Para estes métodos, verificar se há dados nas chaves principais
-            main_key = {
-                'describe_vpcs': 'Vpcs',
-                'describe_subnets': 'Subnets', 
-                'describe_security_groups': 'SecurityGroups'
-            }.get(method)
-            has_data = bool(response.get(main_key, []))
-        else:
-            # Para outros métodos, assumir que há dados se a resposta não está vazia
-            has_data = bool(response and len(response) > 0)
+        if client_type == 'ec2':
+            if method == 'describe_instances' and response.get('Reservations'):
+                has_data = any(res.get('Instances', []) for res in response['Reservations'])
+            elif method == 'describe_volumes' and response.get('Volumes'):
+                has_data = len(response['Volumes']) > 0
+            elif method == 'describe_addresses' and response.get('Addresses'):
+                has_data = len(response['Addresses']) > 0
+            elif method in ['describe_vpcs', 'describe_subnets', 'describe_security_groups'] and response:
+                # Para estes métodos, verificar se há dados nas chaves principais
+                main_key = {
+                    'describe_vpcs': 'Vpcs',
+                    'describe_subnets': 'Subnets', 
+                    'describe_security_groups': 'SecurityGroups'
+                }.get(method)
+                has_data = bool(response.get(main_key, []))
+            else:
+                # Para outros métodos, assumir que há dados se a resposta não está vazia
+                has_data = bool(response and len(response) > 0)
+        elif client_type == 'elbv2':
+            if method == 'describe_load_balancers' and response.get('LoadBalancers'):
+                has_data = len(response['LoadBalancers']) > 0
+            elif method == 'describe_target_groups' and response.get('TargetGroups'):
+                has_data = len(response['TargetGroups']) > 0
+            else:
+                has_data = bool(response and len(response) > 0)
         
         if not has_data:
-            print(f"EC2 Call - Warning: No data returned for {method}")
+            print(f"{client_type.upper()} Call - Warning: No data returned for {method}")
             response['_meta'] = {
                 'warning': f'Nenhum dado encontrado para {method}',
                 'possible_reasons': [
@@ -892,27 +893,28 @@ def aws_ec2_call(method: str, instance_ids: Optional[str] = None, volume_ids: Op
                 ]
             }
             
-        print(f"EC2 Call - Success: {method} (has_data: {has_data})")
+        print(f"{client_type.upper()} Call - Success: {method} (has_data: {has_data})")
         return json.dumps(response, cls=JsonEncoder, ensure_ascii=False, indent=2)
         
     except AttributeError as e:
         import traceback
         tb = traceback.format_exc()
-        print(f"EC2 Call - AttributeError: {e}")
-        print(f"EC2 Call - Traceback:\n{tb}")
+        print(f"{client_type.upper()} Call - AttributeError: {e}")
+        print(f"{client_type.upper()} Call - Traceback:\n{tb}")
         return json.dumps({
-            "error": f"Método '{method}' não existe no cliente EC2",
+            "error": f"Método '{method}' não existe no cliente {client_type}",
             "details": str(e),
+            "client_type": client_type,
             "traceback": tb,
-            "line_info": f"Erro na linha: {traceback.extract_tb(e.__traceback__)[-1].lineno}"
+            "suggestion": f"Verifique se o método {method} está disponível no serviço {client_type}"
         }, ensure_ascii=False, indent=2)
         
     except Exception as e:
         import traceback
         tb = traceback.format_exc()
         error_msg = str(e)
-        print(f"EC2 Call - Error: {error_msg}")
-        print(f"EC2 Call - Traceback:\n{tb}")
+        print(f"{client_type.upper()} Call - Error: {error_msg}")
+        print(f"{client_type.upper()} Call - Traceback:\n{tb}")
         
         # Tratamento de erros específicos com informações detalhadas
         if "InvalidParameterValue" in error_msg:
@@ -920,31 +922,31 @@ def aws_ec2_call(method: str, instance_ids: Optional[str] = None, volume_ids: Op
                 "error": "Parâmetros inválidos fornecidos",
                 "details": error_msg,
                 "suggestion": "Verifique os parâmetros e tente novamente",
-                "traceback": tb,
-                "line_info": f"Erro na linha: {traceback.extract_tb(e.__traceback__)[-1].lineno}"
+                "client_type": client_type,
+                "traceback": tb
             }, ensure_ascii=False, indent=2)
         elif "UnauthorizedOperation" in error_msg:
             return json.dumps({
                 "error": "Operação não autorizada",
                 "details": error_msg,
-                "suggestion": "Verifique as permissões IAM",
-                "traceback": tb,
-                "line_info": f"Erro na linha: {traceback.extract_tb(e.__traceback__)[-1].lineno}"
+                "suggestion": f"Verifique as permissões IAM para {client_type}",
+                "client_type": client_type,
+                "traceback": tb
             }, ensure_ascii=False, indent=2)
         elif "InvalidInstanceID" in error_msg:
             return json.dumps({
                 "error": "ID de instância inválido",
                 "details": error_msg,
                 "suggestion": "Verifique se o ID da instância existe e está correto",
-                "traceback": tb,
-                "line_info": f"Erro na linha: {traceback.extract_tb(e.__traceback__)[-1].lineno}"
+                "client_type": client_type,
+                "traceback": tb
             }, ensure_ascii=False, indent=2)
         else:
             return json.dumps({
                 "error": f"Erro ao executar {method}",
                 "details": error_msg,
+                "client_type": client_type,
                 "traceback": tb,
-                "line_info": f"Erro na linha: {traceback.extract_tb(e.__traceback__)[-1].lineno}",
                 "method": method,
                 "parameters": parameters
             }, ensure_ascii=False, indent=2)
