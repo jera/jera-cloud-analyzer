@@ -218,7 +218,7 @@ def setup_environment():
             print("   aws sso configure")
             
             print("\n💡 Após configurar, execute novamente:")
-            print("   cloud-insights -q \"sua pergunta\"")
+            print("   cloud-analyzer -q \"sua pergunta\"")
             return False
 
 def run_query(question: str):
@@ -257,7 +257,7 @@ def show_examples():
     print("💡 Exemplos de consultas que você pode fazer:")
     print("=" * 50)
     for i, example in enumerate(examples, 1):
-        print(f"{i:2d}. cloud-insights -q \"{example}\"")
+        print(f"{i:2d}. cloud-analyzer -q \"{example}\"")
     print()
 
 def show_version():
@@ -282,15 +282,15 @@ def show_version():
 def main():
     """Função principal do CLI."""
     parser = argparse.ArgumentParser(
-        prog='cloud-insights',
+        prog='cloud-analyzer',
         description='🔍 Jera Cloud Analyzer - Análise inteligente de custos AWS com IA',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemplos de uso:
-  cloud-insights -q "Quais são os top 5 serviços mais caros?"
-  cloud-insights -q "Qual foi o custo do RDS no último mês?"
-  cloud-insights --examples
-  cloud-insights --version
+  cloud-analyzer -q "Quais são os top 5 serviços mais caros?"
+  cloud-analyzer -q "Qual foi o custo do RDS no último mês?"
+  cloud-analyzer --examples
+  cloud-analyzer --version
 
 Autenticação AWS (2 opções):
   • AWS SSO: jera-cli auth login ou aws sso login

@@ -11,20 +11,15 @@ this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text(encoding='utf-8')
 
 # Ler requirements do arquivo
-requirements_file = this_directory / "requirements.txt"
-requirements = []
-if requirements_file.exists():
-    with open(requirements_file, 'r', encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith('#') and not line.startswith('='):
-                # Remove comentários inline
-                req = line.split('#')[0].strip()
-                if req:
-                    requirements.append(req)
+def read_requirements():
+    requirements_path = Path(__file__).parent / 'requirements.txt'
+    if requirements_path.exists():
+        with open(requirements_path, 'r') as f:
+            return [line.strip() for line in f if line.strip() and not line.startswith('#')]
+    return []
 
 # Requirements mínimos caso o arquivo não exista
-if not requirements:
+if not read_requirements():
     requirements = [
         'openai>=1.0.0',
         'boto3>=1.26.0',
@@ -37,17 +32,17 @@ if not requirements:
     ]
 
 setup(
-    name="cloud-insights",
+    name="cloud-analyzer",
     version="1.0.0",
-    description="🔍 Análise inteligente de custos AWS com IA",
+    description="Jera Cloud Analyzer - Análise inteligente de custos AWS com IA",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="Jera Cloud Analyzer Team",
-    author_email="contact@cloudinsights.dev",
-    url="https://github.com/your-org/cloud-insights",
+    author="Jera Team",
+    author_email="hospegadem@jera.com.br",
+    url="https://github.com/jera/jera-cloud-analyzer",
     
     # Packages e módulos
-    packages=find_packages(include=['src', 'src.*']),
+    packages=find_packages(),
     py_modules=['cli'],
     include_package_data=True,
     
@@ -55,12 +50,12 @@ setup(
     python_requires=">=3.8",
     
     # Dependencies
-    install_requires=requirements,
+    install_requires=read_requirements(),
     
     # Console scripts - entry point principal
     entry_points={
         'console_scripts': [
-            'cloud-insights=cli:main',
+            'cloud-analyzer=cli:main',
         ],
     },
     
@@ -89,9 +84,9 @@ setup(
     
     # Project URLs
     project_urls={
-        "Bug Reports": "https://github.com/your-org/cloud-insights/issues",
-        "Documentation": "https://github.com/your-org/cloud-insights/blob/main/README.md",
-        "Source": "https://github.com/your-org/cloud-insights",
+        "Bug Reports": "https://github.com/jera/jera-cloud-analyzer/issues",
+        "Documentation": "https://github.com/jera/jera-cloud-analyzer/blob/main/README.md",
+        "Source": "https://github.com/jera/jera-cloud-analyzer",
     },
     
     # Package data
