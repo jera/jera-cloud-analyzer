@@ -60,8 +60,7 @@ export AWS_DEFAULT_REGION=us-east-1
 ### **🥈 Opção 2: AWS SSO (inclui jera-cli)**
 ```bash
 # Se você usa jera-cli
-jera-cli auth login
-
+jera-cli aws-login
 # Ou AWS SSO nativo
 aws sso configure
 aws sso login --profile seu-perfil
@@ -71,43 +70,43 @@ aws sso login --profile seu-perfil
 
 ### **Comando Básico**
 ```bash
-cloud-insights -q "Sua pergunta sobre AWS"
+cloud-analyzer -q "Sua pergunta sobre AWS"
 ```
 
 ### **Exemplos Práticos**
 
 ```bash
 # Análise de custos
-cloud-insights -q "Quais são os top 5 serviços mais caros?"
-cloud-insights -q "Qual foi o custo do RDS no último mês?"
-cloud-insights -q "Compare custos de storage S3 vs EBS"
+cloud-analyzer -q "Quais são os top 5 serviços mais caros?"
+cloud-analyzer -q "Qual foi o custo do RDS no último mês?"
+cloud-analyzer -q "Compare custos de storage S3 vs EBS"
 
 # Performance e otimização
-cloud-insights -q "Quais instâncias EC2 estão subutilizadas?"
-cloud-insights -q "Analise o tráfego de rede das instâncias EC2"
-cloud-insights -q "Mostre métricas CPU da instância Valhalla"
+cloud-analyzer -q "Quais instâncias EC2 estão subutilizadas?"
+cloud-analyzer -q "Analise o tráfego de rede das instâncias EC2"
+cloud-analyzer -q "Mostre métricas CPU da instância Valhalla"
 
 # Governança e compliance
-cloud-insights -q "Audite recursos sem tags de governança"
-cloud-insights -q "Encontre instâncias EC2 por tag Environment"
-cloud-insights -q "Quais recursos não seguem as políticas de naming?"
+cloud-analyzer -q "Audite recursos sem tags de governança"
+cloud-analyzer -q "Encontre instâncias EC2 por tag Environment"
+cloud-analyzer -q "Quais recursos não seguem as políticas de naming?"
 
 # Previsões e insights
-cloud-insights -q "Preveja o custo para o próximo mês"
-cloud-insights -q "Qual serviço teve maior crescimento nos últimos 3 meses?"
+cloud-analyzer -q "Preveja o custo para o próximo mês"
+cloud-analyzer -q "Qual serviço teve maior crescimento nos últimos 3 meses?"
 ```
 
 ### **Comandos de Ajuda**
 
 ```bash
 # Ver exemplos de consultas
-cloud-insights --examples
+cloud-analyzer --examples
 
 # Ver versão e capacidades
-cloud-insights --version
+cloud-analyzer --version
 
 # Ajuda completa
-cloud-insights --help
+cloud-analyzer --help
 ```
 
 ## 🛠️ **Capacidades Avançadas**
@@ -115,13 +114,13 @@ cloud-insights --help
 ### **🔍 Resolução Inteligente de Serviços**
 ```bash
 # Funciona com nomes populares
-cloud-insights -q "Custo do rds"           # → Amazon Relational Database Service
-cloud-insights -q "Análise do ec2"        # → Amazon Elastic Compute Cloud
-cloud-insights -q "Storage do s3"         # → Amazon Simple Storage Service
+cloud-analyzer -q "Custo do rds"           # → Amazon Relational Database Service
+cloud-analyzer -q "Análise do ec2"        # → Amazon Elastic Compute Cloud
+cloud-analyzer -q "Storage do s3"         # → Amazon Simple Storage Service
 
 # Tolerante a typos
-cloud-insights -q "Custo do databse"      # → database services
-cloud-insights -q "Analise cloudwtch"     # → CloudWatch
+cloud-analyzer -q "Custo do databse"      # → database services
+cloud-analyzer -q "Analise cloudwtch"     # → CloudWatch
 ```
 
 ### **📊 Análise Multi-dimensional**
@@ -174,7 +173,7 @@ O Jera Cloud Analyzer detecta automaticamente sessões do `jera-cli`:
 jera-cli auth login
 
 # 2. Use o Jera Cloud Analyzer normalmente
-cloud-insights -q "Análise de custos"
+cloud-analyzer -q "Análise de custos"
 ```
 
 ### **🔄 Detecção Automática de Credenciais**
@@ -187,7 +186,7 @@ O CLI verifica credenciais nesta ordem:
 ## 🏗️ **Arquitetura**
 
 ```
-cloud-insights/
+cloud-analyzer/
 ├── cli.py                     # 🚀 CLI principal com detecção automática
 ├── src/
 │   ├── ia/
@@ -229,19 +228,19 @@ python3 cli.py -q "Sua pergunta"
 
 # Ou instalar em modo editável
 pip install -e .
-cloud-insights -q "Sua pergunta"
+cloud-analyzer -q "Sua pergunta"
 ```
 
 ### **Testes**
 ```bash
 # Testar configuração
-cloud-insights --version
+cloud-analyzer --version
 
 # Testar exemplos
-cloud-insights --examples
+cloud-analyzer --examples
 
 # Testar consulta simples
-cloud-insights -q "Olá, você está funcionando?"
+cloud-analyzer -q "Olá, você está funcionando?"
 ```
 
 ## 📈 **Performance**
@@ -266,9 +265,9 @@ Este projeto está licenciado sob a MIT License - veja o arquivo [LICENSE](LICEN
 
 ## 🆘 **Suporte**
 
-- 📧 **Email**: contact@cloudinsights.dev
-- 🐛 **Issues**: [GitHub Issues](https://github.com/your-org/cloud-insights/issues)
-- 📖 **Docs**: [Documentation](https://github.com/your-org/cloud-insights/blob/main/README.md)
+- 📧 **Email**: hospedagem@jera.com.br
+- 🐛 **Issues**: [GitHub Issues](https://github.com/jera/jera-cloud-analyzer/issues)
+- 📖 **Docs**: [Documentation](https://github.com/jera/jera-cloud-analyzer/blob/main/README.md)
 
 ---
 
