@@ -6,7 +6,7 @@ import json
 import sys
 import os
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 # Adicionar o diretório raiz ao path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
@@ -14,6 +14,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 from haystack.tools import tool
 from src.clouds.aws.cost_explorer import CostExplorer
 from src.clouds.aws.cost_analyzer import CostAnalyzer
+from src.ia.tools.utility_tools import validate_and_adjust_date_range
+from src.ia.tools.service_resolver import service_resolver
 
 
 class JsonEncoder(json.JSONEncoder):
@@ -32,48 +34,79 @@ class JsonEncoder(json.JSONEncoder):
 @tool
 def get_top_services(start_date: Optional[str] = None, end_date: Optional[str] = None, limit: int = 5) -> str:
     """
-    Obtém os serviços mais caros da AWS no período especificado.
+    Obtém os top serviços mais caros da AWS.
     
     Args:
-        start_date: Data inicial no formato YYYY-MM-DD. Se não fornecido, será considerado 30 dias atrás.
-        end_date: Data final no formato YYYY-MM-DD. Se não fornecido, será considerada a data atual.
-        limit: Número máximo de serviços a retornar (padrão: 5)
+        start_date: Data de início (YYYY-MM-DD) - opcional, padrão últimos 30 dias
+        end_date: Data de fim (YYYY-MM-DD) - opcional, padrão hoje
+        limit: Número de serviços a retornar (padrão 5)
         
     Returns:
-        Lista dos serviços mais caros, ordenados por custo (do maior para o menor)
+        JSON com lista dos serviços mais caros
     """
+    print("GET TOP SERVICES", start_date, end_date, limit)
+    
     try:
-        print(f"GET TOP SERVICES - Input dates - Start: {start_date}, End: {end_date}")
+        cost_explorer = CostExplorer()
         
-        # Definir datas padrão se não fornecidas
-        if not end_date:
+        # Se não especificou datas, usar último mês
+        if not start_date or not end_date:
             end_date = datetime.now().strftime('%Y-%m-%d')
-        if not start_date:
             start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
         
-        print(f"GET TOP SERVICES - Calculated dates - Start: {start_date}, End: {end_date}")
+        # Validar e ajustar as datas antes de usar
+        validated_start, validated_end = validate_and_adjust_date_range(start_date, end_date)
         
-        cost_explorer = CostExplorer()
-        analyzer = CostAnalyzer(cost_explorer)
-        top_services = analyzer.get_top_services(limit=limit, start_date=start_date, end_date=end_date)
+        print(f"GET TOP SERVICES - Using validated period: {validated_start} to {validated_end}")
+        
+        top_services = cost_explorer.get_top_services(
+            start_date=validated_start, 
+            end_date=validated_end, 
+            limit=limit
+        )
+        
+        # Se não houver dados, tentar período menor
+        if not top_services or len(top_services) == 0:
+            # Tentar últimos 7 dias
+            fallback_start = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+            fallback_end = datetime.now().strftime('%Y-%m-%d')
+            
+            print(f"GET TOP SERVICES - No data found, trying fallback period: {fallback_start} to {fallback_end}")
+            
+            top_services = cost_explorer.get_top_services(
+                start_date=fallback_start,
+                end_date=fallback_end,
+                limit=limit
+            )
         
         result = json.dumps(top_services, cls=JsonEncoder, ensure_ascii=False, indent=2)
-        print(f"GET TOP SERVICES - Found {len(top_services)} services")
         return result
         
     except Exception as e:
-        return f"Erro ao obter serviços: {str(e)}"
+        print(f"GET TOP SERVICES ERROR: {e}")
+        
+        # Se for erro de limitação histórica, fornecer orientação específica
+        if "historical data beyond 14 months" in str(e):
+            return json.dumps({
+                "error": "Limitação de dados históricos do AWS Cost Explorer",
+                "message": "A AWS Cost Explorer só permite acesso a dados dos últimos 14 meses",
+                "solution": "Ajustando automaticamente para período válido",
+                "current_date": datetime.now().strftime('%Y-%m-%d'),
+                "using_period": "últimos 30 dias"
+            }, ensure_ascii=False, indent=2)
+        
+        return f"Erro ao obter top serviços: {str(e)}"
 
 
 @tool
 def get_service_details(service_name: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> str:
     """
-    Obtém detalhes de custo de um serviço específico.
+    Obtém detalhes de custos de um serviço específico com resolução automática do nome.
     
     Args:
-        service_name: Nome do serviço AWS (ex: 'Amazon EC2', 'Amazon S3')
-        start_date: Data inicial no formato YYYY-MM-DD
-        end_date: Data final no formato YYYY-MM-DD
+        service_name: Nome do serviço AWS (aceita apelidos como 'rds', 'ec2', etc.)
+        start_date: Data de início (YYYY-MM-DD) - opcional
+        end_date: Data de fim (YYYY-MM-DD) - opcional
         
     Returns:
         Detalhes de custo do serviço especificado
@@ -81,61 +114,56 @@ def get_service_details(service_name: str, start_date: Optional[str] = None, end
     print(f"GET SERVICE DETAILS - Service: {service_name}, Start: {start_date}, End: {end_date}")
     
     try:
+        # 🔧 NOVA FUNCIONALIDADE: Resolução automática do nome do serviço
+        resolved_name, confidence, suggestions = service_resolver.resolve_service_name(service_name)
+        
+        if confidence >= 0.8:
+            actual_service_name = resolved_name
+            print(f"✅ Serviço resolvido: '{service_name}' → '{actual_service_name}' (confiança: {confidence:.2f})")
+        elif confidence > 0.0:
+            actual_service_name = resolved_name
+            print(f"🤔 Serviço resolvido com baixa confiança: '{service_name}' → '{actual_service_name}' (confiança: {confidence:.2f})")
+            if suggestions:
+                print(f"💡 Outras sugestões: {', '.join(suggestions[:3])}")
+        else:
+            actual_service_name = service_name
+            print(f"⚠️  Não foi possível resolver '{service_name}', usando nome original")
+            if suggestions:
+                print(f"💡 Serviços similares encontrados: {', '.join(suggestions[:3])}")
+        
         cost_explorer = CostExplorer()
         
-        # Se não forneceu datas, tenta períodos progressivamente maiores
-        if not start_date or not end_date:
-            # Define data final como hoje
-            if not end_date:
-                end_date = datetime.now().strftime('%Y-%m-%d')
-            
-            # Tenta diferentes períodos: 30, 90, 180, 365 dias
-            periods_to_try = [30, 90, 180, 365]
-            
-            for days in periods_to_try:
-                test_start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
-                print(f"GET SERVICE DETAILS - Trying period: {test_start_date} to {end_date} ({days} days)")
-                
-                try:
-                    service_details = cost_explorer.get_service_details(service_name, test_start_date, end_date)
-                    
-                    # Verifica se há dados (não vazios)
-                    has_data = False
-                    for period in service_details.get('ResultsByTime', []):
-                        total_cost = float(period.get('Total', {}).get('UnblendedCost', {}).get('Amount', '0'))
-                        groups = period.get('Groups', [])
-                        if total_cost > 0 or len(groups) > 0:
-                            has_data = True
-                            break
-                    
-                    if has_data:
-                        print(f"GET SERVICE DETAILS - Found data with {days} days period")
-                        result = json.dumps(service_details, cls=JsonEncoder, ensure_ascii=False, indent=2)
-                        return result
-                    else:
-                        print(f"GET SERVICE DETAILS - No data found for {days} days, trying longer period...")
-                        
-                except Exception as e:
-                    print(f"GET SERVICE DETAILS - Error with {days} days period: {e}")
-                    continue
-            
-            # Se chegou aqui, não encontrou dados em nenhum período
-            return json.dumps({
-                "message": f"Nenhum dado encontrado para {service_name} nos últimos 365 dias",
-                "service_name": service_name,
-                "periods_checked": periods_to_try,
-                "suggestion": "Verifique se o serviço está sendo usado ou se há dados históricos disponíveis"
-            }, ensure_ascii=False, indent=2)
+        # Se as datas foram fornecidas, validar antes de usar
+        validated_start, validated_end = validate_and_adjust_date_range(start_date, end_date)
         
-        else:
-            # Se as datas foram fornecidas, usa elas diretamente
-            print(f"GET SERVICE DETAILS - Using provided dates - Start: {start_date}, End: {end_date}")
-            service_details = cost_explorer.get_service_details(service_name, start_date, end_date)
-            result = json.dumps(service_details, cls=JsonEncoder, ensure_ascii=False, indent=2)
-            return result
+        print(f"GET SERVICE DETAILS - Using validated dates - Start: {validated_start}, End: {validated_end}")
+        service_details = cost_explorer.get_service_details(actual_service_name, validated_start, validated_end)
+        print(service_details)
+        # Adicionar informações de resolução
+        service_details['_service_resolution'] = {
+            'original_input': service_name,
+            'resolved_name': actual_service_name,
+            'confidence': confidence,
+            'resolution_applied': actual_service_name != service_name,
+            'alternative_suggestions': suggestions[:3] if suggestions else []
+        }
+        
+        result = json.dumps(service_details, cls=JsonEncoder, ensure_ascii=False, indent=2)
+        return result
         
     except Exception as e:
         print(f"GET SERVICE DETAILS ERROR: {e}")
+        # Se for erro de limitação histórica, fornecer orientação específica
+        if "historical data beyond 14 months" in str(e):
+            return json.dumps({
+                "error": "Limitação de dados históricos do AWS Cost Explorer",
+                "message": "A AWS Cost Explorer só permite acesso a dados dos últimos 14 meses",
+                "solution": "Use datas mais recentes (últimos 13 meses) para análise",
+                "current_date": datetime.now().strftime('%Y-%m-%d'),
+                "suggested_start_date": (datetime.now() - timedelta(days=390)).strftime('%Y-%m-%d'),
+                "service_attempted": service_name
+            }, ensure_ascii=False, indent=2)
+        
         return f"Erro ao obter detalhes do serviço: {str(e)}"
 
 

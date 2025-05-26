@@ -2,98 +2,275 @@
 Ferramentas utilitárias para o agente de IA.
 """
 
-from datetime import datetime
+import json
+import sys
+import os
+from datetime import datetime, timedelta
+from typing import Optional, List, Dict, Any
+from decimal import Decimal
+
+# Adicionar o diretório raiz ao path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
+
 from haystack.tools import tool
 
 
-@tool
-def format_currency(value: float) -> str:
+class JsonEncoder(json.JSONEncoder):
+    """Encoder JSON personalizado para lidar com tipos especiais como Decimal e datetime."""
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        elif isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+
+
+def validate_and_adjust_date_range(start_date: str, end_date: str) -> tuple[str, str]:
     """
-    Formata um valor float para uma string no formato de moeda,
-    convertendo de dólar para real usando a cotação atual.
+    Valida e ajusta o intervalo de datas para estar dentro do limite de 14 meses do Cost Explorer.
+    
+    Args:
+        start_date: Data de início no formato YYYY-MM-DD
+        end_date: Data de fim no formato YYYY-MM-DD
+        
+    Returns:
+        Tupla com (start_date_ajustada, end_date_ajustada)
     """
     try:
-        import requests
-        # Buscar cotação atual do dólar
-        response = requests.get("https://economia.awesomeapi.com.br/json/last/USD-BRL")
-        data = response.json()
-        cotacao = float(data["USDBRL"]["bid"])
+        # Data atual
+        current_date = datetime.now()
         
-        # Converter valor de dólar para real
-        valor_em_reais = value * cotacao
-        return f"R$ {valor_em_reais:.2f}"
+        # Limite de 14 meses atrás
+        limit_date = current_date - timedelta(days=14 * 30)  # Aproximadamente 14 meses
+        
+        # Converter strings para datetime
+        start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+        end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+        
+        # Verificar se as datas estão dentro do limite
+        adjusted_start = start_dt
+        adjusted_end = end_dt
+        adjustment_made = False
+        
+        if start_dt < limit_date:
+            adjusted_start = limit_date
+            adjustment_made = True
+            
+        if end_dt < limit_date:
+            adjusted_end = limit_date
+            adjustment_made = True
+            
+        # Se a data de fim for futura, ajustar para hoje
+        if end_dt > current_date:
+            adjusted_end = current_date
+            adjustment_made = True
+            
+        # Converter de volta para strings
+        adjusted_start_str = adjusted_start.strftime('%Y-%m-%d')
+        adjusted_end_str = adjusted_end.strftime('%Y-%m-%d')
+        
+        if adjustment_made:
+            print(f"⚠️  AJUSTE DE DATAS: Período original ({start_date} a {end_date}) ajustado para ({adjusted_start_str} a {adjusted_end_str}) devido às limitações do Cost Explorer (14 meses)")
+            
+        return adjusted_start_str, adjusted_end_str
+        
     except Exception as e:
-        # Em caso de erro na API, usa o valor de fallback de 6 reais por dólar
-        valor_em_reais = value * 6.0
-        return f"R$ {valor_em_reais:.2f}"
+        print(f"❌ Erro ao validar datas: {e}")
+        # Em caso de erro, retornar o último mês disponível
+        current_date = datetime.now()
+        end_date = current_date.strftime('%Y-%m-%d')
+        start_date = (current_date - timedelta(days=30)).strftime('%Y-%m-%d')
+        print(f"🔄 Usando período padrão: {start_date} a {end_date}")
+        return start_date, end_date
+
+
+@tool
+def format_currency(amount: float, currency: str = "USD", to_brl: bool = True) -> str:
+    """
+    Formata valores monetários com conversão automática USD->BRL.
+    
+    Args:
+        amount: Valor a ser formatado
+        currency: Moeda original (USD, BRL)
+        to_brl: Se deve converter para BRL
+        
+    Returns:
+        Valor formatado como string
+    """
+    try:
+        if to_brl and currency.upper() == "USD":
+            # Taxa de conversão aproximada (USD para BRL)
+            exchange_rate = 5.20  # Atualizar conforme necessário
+            brl_amount = amount * exchange_rate
+            return f"${amount:.2f} USD (~R$ {brl_amount:.2f} BRL)"
+        elif currency.upper() == "BRL":
+            return f"R$ {amount:.2f} BRL"
+        else:
+            return f"${amount:.2f} {currency.upper()}"
+    except Exception as e:
+        return f"Erro na formatação: {str(e)}"
 
 
 @tool
 def get_current_date() -> str:
     """
-    Obtém a data atual no formato YYYY-MM-DD.
+    Retorna a data atual no formato YYYY-MM-DD.
+    
+    Returns:
+        Data atual formatada
     """
-    current_date = datetime.now().strftime('%Y-%m-%d')
-    print(f"GET CURRENT DATE: {current_date}")
-    return current_date
+    try:
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        print(f"GET CURRENT DATE: {current_date}")
+        return current_date
+    except Exception as e:
+        return f"Erro ao obter data: {str(e)}"
 
 
 @tool
-def get_date_from_period(dia: int = None, mes: int = None, ano: int = None) -> str:
+def get_date_from_period(period_description: str) -> Dict[str, str]:
     """
-    Obtém uma data específica a partir de dia, mês e ano fornecidos.
-    Se algum parâmetro não for fornecido, usa o valor atual.
+    Converte descrições de período em datas específicas com validação de limite.
     
     Args:
-        dia: Dia do mês (1-31)
-        mes: Mês do ano (1-12)
-        ano: Ano (ex: 2023)
+        period_description: Descrição como "último mês", "últimos 3 meses", etc.
         
     Returns:
-        Data no formato YYYY-MM-DD
+        Dicionário com start_date e end_date validadas
     """
-    print("GET DATE FROM PERIOD", dia, mes, ano)
-    data_atual = datetime.now()
-    
-    # Usar valores atuais para parâmetros não fornecidos
-    dia_final = dia if dia is not None else data_atual.day
-    mes_final = mes if mes is not None else data_atual.month
-    ano_final = ano if ano is not None else data_atual.year
-    
     try:
-        # Criar objeto datetime com os valores fornecidos
-        data = datetime(ano_final, mes_final, dia_final)
-        return data.strftime('%Y-%m-%d')
-    except ValueError as e:
-        # Tratar erros como datas inválidas (ex: 31 de fevereiro)
-        return f"Erro: Data inválida - {str(e)}"
+        current_date = datetime.now()
+        
+        # Mapear descrições para períodos
+        period_mapping = {
+            "último mês": 30,
+            "últimos 2 meses": 60,
+            "últimos 3 meses": 90,
+            "últimos 6 meses": 180,
+            "último ano": 365,
+            "últimos 12 meses": 365,
+            "última semana": 7,
+            "últimas 2 semanas": 14,
+            "último trimestre": 90
+        }
+        
+        # Encontrar correspondência
+        days_back = period_mapping.get(period_description.lower(), 30)
+        
+        # Calcular datas
+        end_date = current_date.strftime('%Y-%m-%d')
+        start_date = (current_date - timedelta(days=days_back)).strftime('%Y-%m-%d')
+        
+        # Validar e ajustar se necessário
+        validated_start, validated_end = validate_and_adjust_date_range(start_date, end_date)
+        
+        result = {
+            "start_date": validated_start,
+            "end_date": validated_end,
+            "period_description": period_description,
+            "days_analyzed": days_back
+        }
+        
+        print(f"GET DATE FROM PERIOD: {period_description} -> {validated_start} a {validated_end}")
+        return result
+        
+    except Exception as e:
+        # Em caso de erro, retornar último mês válido
+        current_date = datetime.now()
+        end_date = current_date.strftime('%Y-%m-%d')
+        start_date = (current_date - timedelta(days=30)).strftime('%Y-%m-%d')
+        
+        return {
+            "start_date": start_date,
+            "end_date": end_date,
+            "period_description": "último mês (fallback)",
+            "days_analyzed": 30,
+            "error": str(e)
+        }
 
 
 @tool
-def all_dimensions() -> str:
+def all_dimensions() -> List[str]:
     """
-    Obtém todas as dimensões disponíveis.
+    Lista todas as dimensões disponíveis para análise de custos AWS.
+    
+    Returns:
+        Lista de dimensões suportadas
     """
-    ALL_VALID_DIMENSIONS = {
-        'COST_AND_USAGE': [
-            'AZ', 'INSTANCE_TYPE', 'LINKED_ACCOUNT', 'LINKED_ACCOUNT_NAME',
-            'OPERATION', 'PURCHASE_TYPE', 'REGION', 'SERVICE', 'SERVICE_CODE',
-            'USAGE_TYPE', 'USAGE_TYPE_GROUP', 'RECORD_TYPE', 'OPERATING_SYSTEM',
-            'TENANCY', 'SCOPE', 'PLATFORM', 'SUBSCRIPTION_ID', 'LEGAL_ENTITY_NAME',
-            'DEPLOYMENT_OPTION', 'DATABASE_ENGINE', 'CACHE_ENGINE',
-            'INSTANCE_TYPE_FAMILY', 'BILLING_ENTITY', 'RESERVATION_ID',
-            'RESOURCE_ID', 'RIGHTSIZING_TYPE', 'SAVINGS_PLANS_TYPE',
-            'SAVINGS_PLAN_ARN', 'PAYMENT_OPTION', 'AGREEMENT_END_DATE_TIME_AFTER',
-            'AGREEMENT_END_DATE_TIME_BEFORE', 'INVOICING_ENTITY',
-            'ANOMALY_TOTAL_IMPACT_ABSOLUTE', 'ANOMALY_TOTAL_IMPACT_PERCENTAGE'
-        ],
-        'RESERVATIONS': [
-            'AZ', 'CACHE_ENGINE', 'DEPLOYMENT_OPTION', 'INSTANCE_TYPE',
-            'LINKED_ACCOUNT', 'PLATFORM', 'REGION', 'SCOPE', 'TAG', 'TENANCY'
-        ],
-        'SAVINGS_PLANS': [
-            'SAVINGS_PLANS_TYPE', 'PAYMENT_OPTION', 'REGION',
-            'INSTANCE_TYPE_FAMILY', 'LINKED_ACCOUNT', 'SAVINGS_PLAN_ARN'
-        ]
-    }
-    return ALL_VALID_DIMENSIONS 
+    dimensions = [
+        "SERVICE",
+        "LINKED_ACCOUNT", 
+        "OPERATION",
+        "PURCHASE_TYPE",
+        "REGION",
+        "USAGE_TYPE",
+        "USAGE_TYPE_GROUP",
+        "RECORD_TYPE",
+        "RESOURCE_ID",
+        "RIGHTSIZING_TYPE",
+        "SAVINGS_PLANS_TYPE",
+        "SCOPE",
+        "DIMENSION",
+        "PLATFORM",
+        "TENANCY",
+        "INSTANCE_TYPE",
+        "LEGAL_ENTITY_NAME",
+        "DEPLOYMENT_OPTION",
+        "DATABASE_ENGINE",
+        "CACHE_ENGINE",
+        "INSTANCE_TYPE_FAMILY",
+        "BILLING_ENTITY",
+        "RESERVATION_ID",
+        "SAVINGS_PLAN_ARN",
+        "OPERATING_SYSTEM"
+    ]
+    
+    return dimensions
+
+
+@tool  
+def get_safe_date_range(months_back: int = 1) -> Dict[str, str]:
+    """
+    Retorna um intervalo de datas seguro dentro dos limites do Cost Explorer.
+    
+    Args:
+        months_back: Quantos meses para trás (máximo 14)
+        
+    Returns:
+        Dicionário com start_date e end_date seguras
+    """
+    try:
+        # Limitar a no máximo 13 meses para ter margem de segurança
+        safe_months = min(months_back, 13)
+        
+        current_date = datetime.now()
+        
+        # Data de fim: hoje
+        end_date = current_date.strftime('%Y-%m-%d')
+        
+        # Data de início: X meses atrás
+        start_date = (current_date - timedelta(days=safe_months * 30)).strftime('%Y-%m-%d')
+        
+        result = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "months_analyzed": safe_months,
+            "note": f"Período seguro de {safe_months} meses dentro dos limites do Cost Explorer"
+        }
+        
+        print(f"GET SAFE DATE RANGE: {safe_months} meses -> {start_date} a {end_date}")
+        return result
+        
+    except Exception as e:
+        # Fallback para último mês
+        current_date = datetime.now()
+        end_date = current_date.strftime('%Y-%m-%d')
+        start_date = (current_date - timedelta(days=30)).strftime('%Y-%m-%d')
+        
+        return {
+            "start_date": start_date,
+            "end_date": end_date,
+            "months_analyzed": 1,
+            "error": str(e),
+            "note": "Fallback para último mês devido a erro"
+        } 

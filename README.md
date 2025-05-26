@@ -2,6 +2,8 @@
 
 > **Agente de IA avançado para análise inteligente de custos AWS com recomendações de otimização automatizadas**
 
+> Esse projeto foi desenvolvido junto do cursor
+
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://python.org)
 [![AWS](https://img.shields.io/badge/AWS-Cost_Explorer-orange.svg)](https://aws.amazon.com)
 [![AI](https://img.shields.io/badge/AI-OpenAI_Powered-green.svg)](https://openai.com)

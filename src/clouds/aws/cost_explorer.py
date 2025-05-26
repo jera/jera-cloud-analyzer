@@ -189,6 +189,59 @@ class CostExplorer:
             Dimension=dimension
         )
     
+    def get_top_services(self, start_date: Optional[str] = None, 
+                        end_date: Optional[str] = None, 
+                        limit: int = 5) -> List[Dict[str, Any]]:
+        """
+        Obtém os top serviços mais caros da AWS ordenados por custo.
+        
+        Args:
+            start_date: Data inicial no formato YYYY-MM-DD (padrão: 30 dias atrás)
+            end_date: Data final no formato YYYY-MM-DD (padrão: hoje)
+            limit: Número máximo de serviços a retornar (padrão: 5)
+            
+        Returns:
+            Lista dos serviços mais caros ordenados por custo descendente
+        """
+        # Usar o método existente get_cost_by_service
+        cost_data = self.get_cost_by_service(start_date, end_date)
+        
+        # Processar os dados para extrair top serviços
+        services_costs = []
+        
+        for period in cost_data.get('ResultsByTime', []):
+            period_start = period.get('TimePeriod', {}).get('Start')
+            
+            for group in period.get('Groups', []):
+                service_name = group.get('Keys', ['Unknown'])[0]
+                cost_amount = float(group.get('Metrics', {}).get('UnblendedCost', {}).get('Amount', '0'))
+                cost_unit = group.get('Metrics', {}).get('UnblendedCost', {}).get('Unit', 'USD')
+                
+                # Procurar se já existe este serviço na lista
+                existing_service = next((s for s in services_costs if s['service_name'] == service_name), None)
+                
+                if existing_service:
+                    existing_service['total_cost'] += cost_amount
+                    existing_service['periods'].append({
+                        'period_start': period_start,
+                        'cost': cost_amount
+                    })
+                else:
+                    services_costs.append({
+                        'service_name': service_name,
+                        'total_cost': cost_amount,
+                        'currency': cost_unit,
+                        'periods': [{
+                            'period_start': period_start,
+                            'cost': cost_amount
+                        }]
+                    })
+        
+        # Ordenar por custo total (descendente) e limitar
+        services_costs.sort(key=lambda x: x['total_cost'], reverse=True)
+        
+        return services_costs[:limit]
+    
     def _normalize_dates(self, start_date: Optional[str], 
                         end_date: Optional[str]) -> tuple:
         """
