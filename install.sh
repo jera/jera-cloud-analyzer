@@ -79,7 +79,7 @@ fi
 
 # Clean previous installation
 print_step "Limpando instalação anterior..."
-$PIP_CMD uninstall -y cloud-insights 2>/dev/null || true
+$PIP_CMD uninstall -y cloud-analyzer 2>/dev/null || true
 print_success "Instalação anterior removida"
 
 # Update pip, setuptools and wheel
