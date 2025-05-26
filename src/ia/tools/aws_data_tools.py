@@ -146,7 +146,7 @@ def get_aws_tags() -> str:
     """
     cost_explorer = CostExplorer()
     tags = cost_explorer.get_tags()
-    print("GET AWS TAGS", tags)
+    print("GET AWS TAGS")
     try:
         return tags
     except Exception as e:
@@ -1273,6 +1273,221 @@ def find_instances_by_tag(tag_key: str, tag_value: str = None) -> str:
             "details": str(e),
             "traceback": tb,
             "suggestion": "Verifique se você tem permissões para listar instâncias EC2"
+        }, ensure_ascii=False, indent=2)
+
+
+@tool
+def audit_governance_tags() -> str:
+    """
+    Auditoria otimizada de recursos sem tags de governança adequadas.
+    Retorna resumo eficiente focando apenas em recursos sem tags críticas.
+    
+    Returns:
+        JSON compacto com auditoria de governança por tipo de recurso
+        
+    Exemplo de uso:
+    - audit_governance_tags() - Mostra recursos sem tags de governança
+    """
+    print("INICIANDO AUDITORIA DE GOVERNANÇA OTIMIZADA")
+    
+    try:
+        cost_explorer = CostExplorer()
+        session = cost_explorer.aws_client.session
+        ec2_client = session.client('ec2')
+        
+        # Tags críticas de governança
+        governance_tags = ['Environment', 'Project', 'Owner', 'Team', 'CostCenter', 'Application']
+        
+        audit_result = {
+            "audit_timestamp": datetime.now().isoformat(),
+            "governance_tags_checked": governance_tags,
+            "summary": {
+                "total_resources_audited": 0,
+                "resources_without_governance": 0,
+                "compliance_percentage": 0
+            },
+            "resources_audit": {}
+        }
+        
+        # 1. Auditoria de Instâncias EC2 (resumida)
+        print("Auditando instâncias EC2...")
+        try:
+            instances_response = ec2_client.describe_instances(
+                Filters=[
+                    {
+                        'Name': 'instance-state-name',
+                        'Values': ['running', 'stopped']
+                    }
+                ]
+            )
+            
+            instances_without_governance = []
+            total_instances = 0
+            
+            for reservation in instances_response.get('Reservations', []):
+                for instance in reservation.get('Instances', []):
+                    total_instances += 1
+                    instance_id = instance.get('InstanceId')
+                    instance_type = instance.get('InstanceType')
+                    state = instance.get('State', {}).get('Name')
+                    
+                    # Verificar tags de governança
+                    instance_tags = {tag['Key']: tag['Value'] for tag in instance.get('Tags', [])}
+                    
+                    # Verificar se tem pelo menos uma tag de governança
+                    has_governance_tag = any(tag in instance_tags for tag in governance_tags)
+                    
+                    if not has_governance_tag:
+                        instances_without_governance.append({
+                            "resource_id": instance_id,
+                            "type": instance_type,
+                            "state": state,
+                            "existing_tags": list(instance_tags.keys())[:3],  # Máximo 3 tags para economizar tokens
+                            "missing_governance_tags": governance_tags
+                        })
+            
+            audit_result["resources_audit"]["ec2_instances"] = {
+                "total_count": total_instances,
+                "without_governance_count": len(instances_without_governance),
+                "compliance_rate": f"{((total_instances - len(instances_without_governance)) / total_instances * 100):.1f}%" if total_instances > 0 else "0%",
+                "non_compliant_resources": instances_without_governance[:10]  # Limitar a 10 recursos
+            }
+            
+            audit_result["summary"]["total_resources_audited"] += total_instances
+            audit_result["summary"]["resources_without_governance"] += len(instances_without_governance)
+            
+        except Exception as e:
+            print(f"Erro na auditoria de instâncias: {e}")
+            audit_result["resources_audit"]["ec2_instances"] = {"error": str(e)}
+        
+        # 2. Auditoria de Volumes EBS (resumida)
+        print("Auditando volumes EBS...")
+        try:
+            volumes_response = ec2_client.describe_volumes()
+            
+            volumes_without_governance = []
+            total_volumes = len(volumes_response.get('Volumes', []))
+            
+            for volume in volumes_response.get('Volumes', []):
+                volume_id = volume.get('VolumeId')
+                volume_size = volume.get('Size')
+                volume_state = volume.get('State')
+                
+                # Verificar tags de governança
+                volume_tags = {tag['Key']: tag['Value'] for tag in volume.get('Tags', [])}
+                has_governance_tag = any(tag in volume_tags for tag in governance_tags)
+                
+                if not has_governance_tag:
+                    volumes_without_governance.append({
+                        "resource_id": volume_id,
+                        "size_gb": volume_size,
+                        "state": volume_state,
+                        "existing_tags": list(volume_tags.keys())[:2],  # Máximo 2 tags
+                        "is_attached": len(volume.get('Attachments', [])) > 0
+                    })
+            
+            audit_result["resources_audit"]["ebs_volumes"] = {
+                "total_count": total_volumes,
+                "without_governance_count": len(volumes_without_governance),
+                "compliance_rate": f"{((total_volumes - len(volumes_without_governance)) / total_volumes * 100):.1f}%" if total_volumes > 0 else "0%",
+                "non_compliant_resources": volumes_without_governance[:5]  # Limitar a 5 volumes
+            }
+            
+            audit_result["summary"]["total_resources_audited"] += total_volumes
+            audit_result["summary"]["resources_without_governance"] += len(volumes_without_governance)
+            
+        except Exception as e:
+            print(f"Erro na auditoria de volumes: {e}")
+            audit_result["resources_audit"]["ebs_volumes"] = {"error": str(e)}
+        
+        # 3. Auditoria de Elastic IPs (resumida)
+        print("Auditando Elastic IPs...")
+        try:
+            addresses_response = ec2_client.describe_addresses()
+            
+            addresses_without_governance = []
+            total_addresses = len(addresses_response.get('Addresses', []))
+            
+            for address in addresses_response.get('Addresses', []):
+                allocation_id = address.get('AllocationId')
+                public_ip = address.get('PublicIp')
+                is_associated = 'AssociationId' in address
+                
+                # Verificar tags de governança
+                address_tags = {tag['Key']: tag['Value'] for tag in address.get('Tags', [])}
+                has_governance_tag = any(tag in address_tags for tag in governance_tags)
+                
+                if not has_governance_tag:
+                    addresses_without_governance.append({
+                        "resource_id": allocation_id or public_ip,
+                        "public_ip": public_ip,
+                        "is_associated": is_associated,
+                        "existing_tags": list(address_tags.keys())[:2]
+                    })
+            
+            audit_result["resources_audit"]["elastic_ips"] = {
+                "total_count": total_addresses,
+                "without_governance_count": len(addresses_without_governance),
+                "compliance_rate": f"{((total_addresses - len(addresses_without_governance)) / total_addresses * 100):.1f}%" if total_addresses > 0 else "0%",
+                "non_compliant_resources": addresses_without_governance[:5]  # Limitar a 5 IPs
+            }
+            
+            audit_result["summary"]["total_resources_audited"] += total_addresses
+            audit_result["summary"]["resources_without_governance"] += len(addresses_without_governance)
+            
+        except Exception as e:
+            print(f"Erro na auditoria de Elastic IPs: {e}")
+            audit_result["resources_audit"]["elastic_ips"] = {"error": str(e)}
+        
+        # Calcular compliance geral
+        if audit_result["summary"]["total_resources_audited"] > 0:
+            compliance_rate = ((audit_result["summary"]["total_resources_audited"] - audit_result["summary"]["resources_without_governance"]) / 
+                             audit_result["summary"]["total_resources_audited"]) * 100
+            audit_result["summary"]["compliance_percentage"] = f"{compliance_rate:.1f}%"
+        
+        # Adicionar recomendações
+        audit_result["recommendations"] = []
+        
+        if audit_result["summary"]["resources_without_governance"] > 0:
+            audit_result["recommendations"].extend([
+                f"Implementar tags de governança em {audit_result['summary']['resources_without_governance']} recursos",
+                "Criar política de tagging obrigatória",
+                "Configurar AWS Config para compliance automático",
+                "Treinar equipes sobre importância de tags para cost allocation"
+            ])
+        else:
+            audit_result["recommendations"].append("Excelente! Todos os recursos auditados possuem tags de governança.")
+        
+        # Priorização por impacto
+        audit_result["priority_actions"] = []
+        
+        ec2_non_compliant = audit_result["resources_audit"].get("ec2_instances", {}).get("without_governance_count", 0)
+        if ec2_non_compliant > 0:
+            audit_result["priority_actions"].append(f"ALTA: {ec2_non_compliant} instâncias EC2 sem tags (maior impacto de custo)")
+        
+        ebs_non_compliant = audit_result["resources_audit"].get("ebs_volumes", {}).get("without_governance_count", 0)
+        if ebs_non_compliant > 0:
+            audit_result["priority_actions"].append(f"MÉDIA: {ebs_non_compliant} volumes EBS sem tags")
+        
+        eip_non_compliant = audit_result["resources_audit"].get("elastic_ips", {}).get("without_governance_count", 0)
+        if eip_non_compliant > 0:
+            audit_result["priority_actions"].append(f"BAIXA: {eip_non_compliant} Elastic IPs sem tags")
+        
+        print(f"Auditoria concluída: {audit_result['summary']['compliance_percentage']} compliance")
+        
+        return json.dumps(audit_result, cls=JsonEncoder, ensure_ascii=False, indent=2)
+        
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        print(f"Erro na auditoria de governança: {e}")
+        print(f"Traceback:\n{tb}")
+        
+        return json.dumps({
+            "error": f"Erro na auditoria de governança",
+            "details": str(e),
+            "traceback": tb,
+            "suggestion": "Verifique permissões e conectividade AWS"
         }, ensure_ascii=False, indent=2)
 
 

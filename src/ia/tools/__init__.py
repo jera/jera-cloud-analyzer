@@ -15,7 +15,8 @@ from src.ia.tools.aws_data_tools import (
     check_account_data_availability,
     aws_ec2_call,
     get_instance_cost_by_name,
-    find_instances_by_tag
+    find_instances_by_tag,
+    audit_governance_tags
 )
 
 from src.ia.tools.utility_tools import (
@@ -39,6 +40,7 @@ ALL_TOOLS = [
     aws_ec2_call,
     get_instance_cost_by_name,
     find_instances_by_tag,
+    audit_governance_tags,
     format_currency,
     get_current_date,
     get_date_from_period,
@@ -59,6 +61,7 @@ __all__ = [
     'aws_ec2_call',
     'get_instance_cost_by_name',
     'find_instances_by_tag',
+    'audit_governance_tags',
     'format_currency',
     'get_current_date',
     'get_date_from_period',
