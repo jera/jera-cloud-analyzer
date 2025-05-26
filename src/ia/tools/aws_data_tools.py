@@ -199,14 +199,17 @@ def get_dimension_values(dimension_name: str) -> str:
 
 
 @tool
-def discover_account_resources() -> str:
+def discover_account_resources(limit: int = 5) -> str:
     """
-    Descobre todos os recursos ativos na conta AWS.
+    Descobre todos os recursos ativos na conta AWS com limitação configurável.
+    
+    Args:
+        limit: Número máximo de recursos a retornar por categoria (padrão: 5)
     
     Returns:
-        JSON com dados sobre serviços, regiões, tipos de instância e contas descobertos
+        JSON com dados sobre serviços, regiões, tipos de instância e contas descobertos (limitados)
     """
-    print("CHAMANDO DISCOVER_ACCOUNT_RESOURCES")
+    print(f"CHAMANDO DISCOVER_ACCOUNT_RESOURCES - Limite: {limit}")
     try:
         cost_explorer = CostExplorer()
         
@@ -245,30 +248,37 @@ def discover_account_resources() -> str:
         
         discovery_data = {
             "timestamp": datetime.now().isoformat(),
+            "limit_applied": limit,
             "services": {
                 "total_count": len(active_services),
-                "list": active_services
+                "list": active_services[:limit],
+                "truncated": len(active_services) > limit
             },
             "regions": {
                 "total_count": len(active_regions),
-                "list": active_regions
+                "list": active_regions[:limit],
+                "truncated": len(active_regions) > limit
             },
             "instance_types": {
                 "total_count": len(instance_types),
-                "list": instance_types
+                "list": instance_types[:limit],
+                "truncated": len(instance_types) > limit
             },
             "linked_accounts": {
                 "total_count": len(linked_accounts),
-                "list": linked_accounts,
-                "is_multi_account": len(linked_accounts) > 1
+                "list": linked_accounts[:limit],
+                "is_multi_account": len(linked_accounts) > 1,
+                "truncated": len(linked_accounts) > limit
             },
             "purchase_types": {
                 "total_count": len(purchase_types),
-                "list": purchase_types
+                "list": purchase_types[:limit],
+                "truncated": len(purchase_types) > limit
             },
             "operating_systems": {
                 "total_count": len(operating_systems),
-                "list": operating_systems
+                "list": operating_systems[:limit],
+                "truncated": len(operating_systems) > limit
             }
         }
         
@@ -714,7 +724,7 @@ def check_account_data_availability() -> str:
 @tool
 def aws_ec2_call(method: str, instance_ids: Optional[str] = None, volume_ids: Optional[str] = None, 
                  vpc_ids: Optional[str] = None, subnet_ids: Optional[str] = None, 
-                 group_ids: Optional[str] = None, region_name: Optional[str] = None) -> str:
+                 group_ids: Optional[str] = None, region_name: Optional[str] = None, limit: int = 5) -> str:
     """
     Executa chamadas dinâmicas para EC2 e outros serviços AWS baseado no método solicitado.
     
@@ -726,15 +736,18 @@ def aws_ec2_call(method: str, instance_ids: Optional[str] = None, volume_ids: Op
         subnet_ids: IDs de subnets (separados por vírgula, opcional)
         group_ids: IDs de security groups (separados por vírgula, opcional)
         region_name: Região AWS específica (opcional)
+        limit: Número máximo de recursos a retornar (padrão: 5)
         
     Returns:
-        JSON com a resposta da API AWS correspondente ao método solicitado
+        JSON com a resposta da API AWS correspondente ao método solicitado (limitado)
         
     Exemplos:
-    - aws_ec2_call("describe_instances")
+    - aws_ec2_call("describe_instances", limit=10)
     - aws_ec2_call("describe_volumes", volume_ids="vol-123,vol-456")
-    - aws_ec2_call("describe_load_balancers")  # Será redirecionado para ELBv2
+    - aws_ec2_call("describe_load_balancers", limit=3)  # Será redirecionado para ELBv2
     """
+    print(f"AWS EC2 CALL - Método: {method}, Limite: {limit}")
+    
     # Preparar parâmetros dinâmicos baseados no método
     parameters = {}
     
@@ -852,6 +865,84 @@ def aws_ec2_call(method: str, instance_ids: Optional[str] = None, volume_ids: Op
         # Remove ResponseMetadata para limpar o output
         if 'ResponseMetadata' in response:
             del response['ResponseMetadata']
+        
+        # Aplicar limitação aos recursos retornados
+        original_response = response.copy()
+        total_resources = 0
+        truncated = False
+        
+        if client_type == 'ec2':
+            if method == 'describe_instances' and 'Reservations' in response:
+                # Para instâncias, limitar o número total de instâncias
+                limited_reservations = []
+                instances_count = 0
+                
+                for reservation in response['Reservations']:
+                    if instances_count >= limit:
+                        truncated = True
+                        break
+                    
+                    limited_instances = []
+                    for instance in reservation.get('Instances', []):
+                        if instances_count >= limit:
+                            truncated = True
+                            break
+                        limited_instances.append(instance)
+                        instances_count += 1
+                    
+                    if limited_instances:
+                        limited_reservation = reservation.copy()
+                        limited_reservation['Instances'] = limited_instances
+                        limited_reservations.append(limited_reservation)
+                
+                total_resources = sum(len(res.get('Instances', [])) for res in original_response['Reservations'])
+                response['Reservations'] = limited_reservations
+                
+            elif method == 'describe_volumes' and 'Volumes' in response:
+                total_resources = len(response['Volumes'])
+                response['Volumes'] = response['Volumes'][:limit]
+                truncated = total_resources > limit
+                
+            elif method == 'describe_addresses' and 'Addresses' in response:
+                total_resources = len(response['Addresses'])
+                response['Addresses'] = response['Addresses'][:limit]
+                truncated = total_resources > limit
+                
+            elif method == 'describe_vpcs' and 'Vpcs' in response:
+                total_resources = len(response['Vpcs'])
+                response['Vpcs'] = response['Vpcs'][:limit]
+                truncated = total_resources > limit
+                
+            elif method == 'describe_subnets' and 'Subnets' in response:
+                total_resources = len(response['Subnets'])
+                response['Subnets'] = response['Subnets'][:limit]
+                truncated = total_resources > limit
+                
+            elif method == 'describe_security_groups' and 'SecurityGroups' in response:
+                total_resources = len(response['SecurityGroups'])
+                response['SecurityGroups'] = response['SecurityGroups'][:limit]
+                truncated = total_resources > limit
+                
+        elif client_type == 'elbv2':
+            if method == 'describe_load_balancers' and 'LoadBalancers' in response:
+                total_resources = len(response['LoadBalancers'])
+                response['LoadBalancers'] = response['LoadBalancers'][:limit]
+                truncated = total_resources > limit
+                
+            elif method == 'describe_target_groups' and 'TargetGroups' in response:
+                total_resources = len(response['TargetGroups'])
+                response['TargetGroups'] = response['TargetGroups'][:limit]
+                truncated = total_resources > limit
+        
+        # Adicionar metadados sobre limitação
+        response['_meta'] = {
+            'limit_applied': limit,
+            'total_resources_found': total_resources,
+            'resources_returned': min(total_resources, limit),
+            'truncated': truncated,
+            'method': method,
+            'client_type': client_type
+        }
         
         # Verificar se há dados úteis na resposta
         has_data = False
@@ -1175,23 +1266,24 @@ def get_instance_cost_by_name(instance_name: str, start_date: Optional[str] = No
 
 
 @tool
-def find_instances_by_tag(tag_key: str, tag_value: str = None) -> str:
+def find_instances_by_tag(tag_key: str, tag_value: str = None, limit: int = 5) -> str:
     """
     Busca instâncias EC2 por uma tag específica ou lista todas as instâncias com uma determinada tag.
     
     Args:
         tag_key: Chave da tag (ex: 'Name', 'Environment', 'Project')
         tag_value: Valor da tag (opcional). Se não fornecido, lista todos os valores para essa tag
+        limit: Número máximo de instâncias a retornar (padrão: 5)
         
     Returns:
-        JSON com instâncias encontradas e suas informações básicas
+        JSON com instâncias encontradas e suas informações básicas (limitado)
         
     Exemplos:
     - find_instances_by_tag("Name", "Valhalla")
-    - find_instances_by_tag("Environment", "production")
-    - find_instances_by_tag("Project")  # Lista todas as instâncias com tag Project
+    - find_instances_by_tag("Environment", "production", limit=10)
+    - find_instances_by_tag("Project", limit=3)  # Lista até 3 instâncias com tag Project
     """
-    print(f"BUSCANDO INSTÂNCIAS POR TAG: {tag_key}={tag_value or '*'}")
+    print(f"BUSCANDO INSTÂNCIAS POR TAG: {tag_key}={tag_value or '*'} - Limite: {limit}")
     
     try:
         cost_explorer = CostExplorer()
@@ -1225,9 +1317,16 @@ def find_instances_by_tag(tag_key: str, tag_value: str = None) -> str:
         # Processar resultados
         instances_info = []
         tag_values_found = set()
+        total_instances_found = 0
         
         for reservation in instances_response.get('Reservations', []):
             for instance in reservation.get('Instances', []):
+                total_instances_found += 1
+                
+                # Aplicar limite
+                if len(instances_info) >= limit:
+                    continue
+                
                 # Extrair informações básicas
                 instance_id = instance.get('InstanceId')
                 instance_type = instance.get('InstanceType')
@@ -1266,10 +1365,13 @@ def find_instances_by_tag(tag_key: str, tag_value: str = None) -> str:
             "search_criteria": {
                 "tag_key": tag_key,
                 "tag_value": tag_value,
-                "search_type": "specific_value" if tag_value else "all_values"
+                "search_type": "specific_value" if tag_value else "all_values",
+                "limit_applied": limit
             },
             "results_summary": {
-                "total_instances_found": len(instances_info),
+                "total_instances_found": total_instances_found,
+                "instances_returned": len(instances_info),
+                "truncated": total_instances_found > limit,
                 "unique_tag_values": list(tag_values_found) if not tag_value else None
             },
             "instances": instances_info
@@ -1519,6 +1621,307 @@ def audit_governance_tags() -> str:
             "traceback": tb,
             "suggestion": "Verifique permissões e conectividade AWS"
         }, ensure_ascii=False, indent=2)
+
+
+@tool
+def identify_orphaned_resources(limit: int = 5) -> str:
+    """
+    Identifica recursos órfãos (não utilizados) na conta AWS com limitação configurável.
+    Prioriza recursos por impacto financeiro potencial.
+    
+    Args:
+        limit: Número máximo de recursos órfãos a retornar por categoria (padrão: 5)
+    
+    Returns:
+        JSON com recursos órfãos identificados, priorizados por economia potencial
+        
+    Recursos órfãos identificados:
+    - Volumes EBS não anexados
+    - Elastic IPs não associados
+    - Snapshots antigos (>90 dias)
+    - Load Balancers sem targets
+    - Security Groups não utilizados
+    """
+    print(f"IDENTIFICANDO RECURSOS ÓRFÃOS - Limite: {limit}")
+    
+    try:
+        cost_explorer = CostExplorer()
+        session = cost_explorer.aws_client.session
+        ec2_client = session.client('ec2')
+        elbv2_client = session.client('elbv2')
+        
+        orphaned_resources = {
+            "analysis_timestamp": datetime.now().isoformat(),
+            "limit_applied": limit,
+            "summary": {
+                "total_orphaned_resources": 0,
+                "estimated_monthly_savings": 0.0,
+                "categories_analyzed": 5
+            },
+            "orphaned_resources": {}
+        }
+        
+        # 1. Volumes EBS não anexados
+        print("Identificando volumes EBS órfãos...")
+        try:
+            volumes_response = ec2_client.describe_volumes(
+                Filters=[
+                    {
+                        'Name': 'status',
+                        'Values': ['available']  # Volumes não anexados
+                    }
+                ]
+            )
+            
+            orphaned_volumes = []
+            for volume in volumes_response.get('Volumes', []):
+                volume_id = volume.get('VolumeId')
+                size_gb = volume.get('Size', 0)
+                volume_type = volume.get('VolumeType', 'gp2')
+                create_time = volume.get('CreateTime')
+                
+                # Estimativa de custo mensal (preços aproximados)
+                cost_per_gb = {
+                    'gp2': 0.10, 'gp3': 0.08, 'io1': 0.125, 'io2': 0.125,
+                    'st1': 0.045, 'sc1': 0.025, 'standard': 0.05
+                }
+                monthly_cost = size_gb * cost_per_gb.get(volume_type, 0.10)
+                
+                orphaned_volumes.append({
+                    "resource_id": volume_id,
+                    "size_gb": size_gb,
+                    "volume_type": volume_type,
+                    "create_time": create_time.isoformat() if create_time else None,
+                    "estimated_monthly_cost": round(monthly_cost, 2),
+                    "priority": "HIGH" if monthly_cost > 20 else "MEDIUM" if monthly_cost > 5 else "LOW"
+                })
+            
+            # Ordenar por custo e limitar
+            orphaned_volumes.sort(key=lambda x: x['estimated_monthly_cost'], reverse=True)
+            total_volumes = len(orphaned_volumes)
+            limited_volumes = orphaned_volumes[:limit]
+            
+            orphaned_resources["orphaned_resources"]["ebs_volumes"] = {
+                "total_found": total_volumes,
+                "resources_returned": len(limited_volumes),
+                "truncated": total_volumes > limit,
+                "total_estimated_savings": sum(v['estimated_monthly_cost'] for v in orphaned_volumes),
+                "resources": limited_volumes
+            }
+            
+            orphaned_resources["summary"]["total_orphaned_resources"] += total_volumes
+            orphaned_resources["summary"]["estimated_monthly_savings"] += sum(v['estimated_monthly_cost'] for v in orphaned_volumes)
+            
+        except Exception as e:
+            print(f"Erro ao identificar volumes órfãos: {e}")
+            orphaned_resources["orphaned_resources"]["ebs_volumes"] = {"error": str(e)}
+        
+        # 2. Elastic IPs não associados
+        print("Identificando Elastic IPs órfãos...")
+        try:
+            addresses_response = ec2_client.describe_addresses()
+            
+            orphaned_ips = []
+            for address in addresses_response.get('Addresses', []):
+                # Elastic IP é órfão se não está associado
+                if 'AssociationId' not in address:
+                    allocation_id = address.get('AllocationId')
+                    public_ip = address.get('PublicIp')
+                    
+                    # Custo de Elastic IP não associado: ~$3.65/mês
+                    monthly_cost = 3.65
+                    
+                    orphaned_ips.append({
+                        "resource_id": allocation_id or public_ip,
+                        "public_ip": public_ip,
+                        "domain": address.get('Domain', 'vpc'),
+                        "estimated_monthly_cost": monthly_cost,
+                        "priority": "MEDIUM"
+                    })
+            
+            total_ips = len(orphaned_ips)
+            limited_ips = orphaned_ips[:limit]
+            
+            orphaned_resources["orphaned_resources"]["elastic_ips"] = {
+                "total_found": total_ips,
+                "resources_returned": len(limited_ips),
+                "truncated": total_ips > limit,
+                "total_estimated_savings": sum(ip['estimated_monthly_cost'] for ip in orphaned_ips),
+                "resources": limited_ips
+            }
+            
+            orphaned_resources["summary"]["total_orphaned_resources"] += total_ips
+            orphaned_resources["summary"]["estimated_monthly_savings"] += sum(ip['estimated_monthly_cost'] for ip in orphaned_ips)
+            
+        except Exception as e:
+            print(f"Erro ao identificar Elastic IPs órfãos: {e}")
+            orphaned_resources["orphaned_resources"]["elastic_ips"] = {"error": str(e)}
+        
+        # 3. Snapshots antigos (>90 dias)
+        print("Identificando snapshots antigos...")
+        try:
+            snapshots_response = ec2_client.describe_snapshots(OwnerIds=['self'])
+            
+            orphaned_snapshots = []
+            cutoff_date = datetime.now() - timedelta(days=90)
+            
+            for snapshot in snapshots_response.get('Snapshots', []):
+                start_time = snapshot.get('StartTime')
+                if start_time and start_time < cutoff_date:
+                    snapshot_id = snapshot.get('SnapshotId')
+                    volume_size = snapshot.get('VolumeSize', 0)
+                    
+                    # Custo de snapshot: ~$0.05 por GB/mês
+                    monthly_cost = volume_size * 0.05
+                    
+                    orphaned_snapshots.append({
+                        "resource_id": snapshot_id,
+                        "volume_size_gb": volume_size,
+                        "start_time": start_time.isoformat(),
+                        "age_days": (datetime.now() - start_time.replace(tzinfo=None)).days,
+                        "estimated_monthly_cost": round(monthly_cost, 2),
+                        "priority": "HIGH" if monthly_cost > 10 else "MEDIUM" if monthly_cost > 2 else "LOW"
+                    })
+            
+            # Ordenar por custo e limitar
+            orphaned_snapshots.sort(key=lambda x: x['estimated_monthly_cost'], reverse=True)
+            total_snapshots = len(orphaned_snapshots)
+            limited_snapshots = orphaned_snapshots[:limit]
+            
+            orphaned_resources["orphaned_resources"]["old_snapshots"] = {
+                "total_found": total_snapshots,
+                "resources_returned": len(limited_snapshots),
+                "truncated": total_snapshots > limit,
+                "cutoff_days": 90,
+                "total_estimated_savings": sum(s['estimated_monthly_cost'] for s in orphaned_snapshots),
+                "resources": limited_snapshots
+            }
+            
+            orphaned_resources["summary"]["total_orphaned_resources"] += total_snapshots
+            orphaned_resources["summary"]["estimated_monthly_savings"] += sum(s['estimated_monthly_cost'] for s in orphaned_snapshots)
+            
+        except Exception as e:
+            print(f"Erro ao identificar snapshots órfãos: {e}")
+            orphaned_resources["orphaned_resources"]["old_snapshots"] = {"error": str(e)}
+        
+        # 4. Load Balancers sem targets
+        print("Identificando Load Balancers órfãos...")
+        try:
+            lbs_response = elbv2_client.describe_load_balancers()
+            
+            orphaned_lbs = []
+            for lb in lbs_response.get('LoadBalancers', []):
+                lb_arn = lb.get('LoadBalancerArn')
+                lb_name = lb.get('LoadBalancerName')
+                lb_type = lb.get('Type', 'application')
+                
+                # Verificar se tem target groups com targets saudáveis
+                try:
+                    tgs_response = elbv2_client.describe_target_groups(LoadBalancerArn=lb_arn)
+                    has_healthy_targets = False
+                    
+                    for tg in tgs_response.get('TargetGroups', []):
+                        tg_arn = tg.get('TargetGroupArn')
+                        health_response = elbv2_client.describe_target_health(TargetGroupArn=tg_arn)
+                        
+                        healthy_targets = [
+                            target for target in health_response.get('TargetHealthDescriptions', [])
+                            if target.get('TargetHealth', {}).get('State') == 'healthy'
+                        ]
+                        
+                        if healthy_targets:
+                            has_healthy_targets = True
+                            break
+                    
+                    if not has_healthy_targets:
+                        # Estimativa de custo de ALB: ~$16/mês, NLB: ~$16/mês
+                        monthly_cost = 16.0
+                        
+                        orphaned_lbs.append({
+                            "resource_id": lb_arn,
+                            "load_balancer_name": lb_name,
+                            "type": lb_type,
+                            "estimated_monthly_cost": monthly_cost,
+                            "priority": "HIGH"
+                        })
+                        
+                except Exception as e:
+                    print(f"Erro ao verificar targets do LB {lb_name}: {e}")
+            
+            total_lbs = len(orphaned_lbs)
+            limited_lbs = orphaned_lbs[:limit]
+            
+            orphaned_resources["orphaned_resources"]["load_balancers"] = {
+                "total_found": total_lbs,
+                "resources_returned": len(limited_lbs),
+                "truncated": total_lbs > limit,
+                "total_estimated_savings": sum(lb['estimated_monthly_cost'] for lb in orphaned_lbs),
+                "resources": limited_lbs
+            }
+            
+            orphaned_resources["summary"]["total_orphaned_resources"] += total_lbs
+            orphaned_resources["summary"]["estimated_monthly_savings"] += sum(lb['estimated_monthly_cost'] for lb in orphaned_lbs)
+            
+        except Exception as e:
+            print(f"Erro ao identificar Load Balancers órfãos: {e}")
+            orphaned_resources["orphaned_resources"]["load_balancers"] = {"error": str(e)}
+        
+        # Gerar recomendações priorizadas
+        orphaned_resources["recommendations"] = _generate_orphaned_resources_recommendations(orphaned_resources)
+        
+        print(f"Análise de recursos órfãos concluída: {orphaned_resources['summary']['total_orphaned_resources']} recursos encontrados")
+        return json.dumps(orphaned_resources, cls=JsonEncoder, ensure_ascii=False, indent=2)
+        
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        print(f"Erro na identificação de recursos órfãos: {e}")
+        print(f"Traceback:\n{tb}")
+        
+        return json.dumps({
+            "error": f"Erro na identificação de recursos órfãos",
+            "details": str(e),
+            "traceback": tb,
+            "suggestion": "Verifique permissões EC2 e ELB"
+        }, ensure_ascii=False, indent=2)
+
+
+def _generate_orphaned_resources_recommendations(orphaned_data: Dict[str, Any]) -> List[str]:
+    """Gera recomendações priorizadas para recursos órfãos."""
+    recommendations = []
+    
+    total_savings = orphaned_data.get("summary", {}).get("estimated_monthly_savings", 0)
+    
+    if total_savings > 100:
+        recommendations.append(f"ALTA PRIORIDADE: Economia potencial de ${total_savings:.2f}/mês identificada")
+    elif total_savings > 20:
+        recommendations.append(f"MÉDIA PRIORIDADE: Economia potencial de ${total_savings:.2f}/mês identificada")
+    
+    # Recomendações específicas por tipo de recurso
+    ebs_data = orphaned_data.get("orphaned_resources", {}).get("ebs_volumes", {})
+    if ebs_data.get("total_found", 0) > 0:
+        ebs_savings = ebs_data.get("total_estimated_savings", 0)
+        recommendations.append(f"Volumes EBS: {ebs_data['total_found']} volumes órfãos (${ebs_savings:.2f}/mês)")
+    
+    ip_data = orphaned_data.get("orphaned_resources", {}).get("elastic_ips", {})
+    if ip_data.get("total_found", 0) > 0:
+        ip_savings = ip_data.get("total_estimated_savings", 0)
+        recommendations.append(f"Elastic IPs: {ip_data['total_found']} IPs não utilizados (${ip_savings:.2f}/mês)")
+    
+    snapshot_data = orphaned_data.get("orphaned_resources", {}).get("old_snapshots", {})
+    if snapshot_data.get("total_found", 0) > 0:
+        snapshot_savings = snapshot_data.get("total_estimated_savings", 0)
+        recommendations.append(f"Snapshots antigos: {snapshot_data['total_found']} snapshots >90 dias (${snapshot_savings:.2f}/mês)")
+    
+    lb_data = orphaned_data.get("orphaned_resources", {}).get("load_balancers", {})
+    if lb_data.get("total_found", 0) > 0:
+        lb_savings = lb_data.get("total_estimated_savings", 0)
+        recommendations.append(f"Load Balancers: {lb_data['total_found']} LBs sem targets (${lb_savings:.2f}/mês)")
+    
+    if total_savings > 50:
+        recommendations.append("Recomenda-se implementar automação para limpeza regular de recursos órfãos")
+    
+    return recommendations
 
 
  

@@ -114,7 +114,6 @@ def get_instance_performance_metrics(instance_id: str, hours: int = 24, metrics:
                     Period=3600,  # 1 hora
                     Statistics=['Average', 'Maximum', 'Minimum']
                 )
-                
                 datapoints = response.get('Datapoints', [])
                 if datapoints:
                     # Ordenar por timestamp
