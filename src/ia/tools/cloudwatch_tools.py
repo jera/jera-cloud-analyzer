@@ -217,6 +217,12 @@ def get_instance_performance_metrics(instance_id: str, hours: int = 24, metrics:
         # Adicionar recomendações gerais
         performance_data["recommendations"] = _generate_performance_recommendations(performance_data)
         
+        # Remover time_series para reduzir tamanho do JSON antes do retorno
+        for metric_name, metric_data in performance_data.get("metrics", {}).items():
+            if isinstance(metric_data, dict) and "time_series" in metric_data:
+                del metric_data["time_series"]
+        
+        print("performance_data", performance_data)
         print(f"Métricas coletadas com sucesso para {instance_id}")
         return json.dumps(performance_data, cls=JsonEncoder, ensure_ascii=False, indent=2)
         
