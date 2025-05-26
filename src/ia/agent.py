@@ -25,7 +25,7 @@ from src.ia.system_prompt import SYSTEM_PROMPT
 
 # Configurar o agente
 cost_analyzer = Agent(
-    chat_generator=OpenAIChatGenerator(model="gpt-4o-mini"),
+    chat_generator=OpenAIChatGenerator(model="gpt-4o-mini", generation_kwargs={"max_tokens": 10000}),
     tools=ALL_TOOLS,
     system_prompt=SYSTEM_PROMPT,
     exit_conditions=["text"],
