@@ -42,7 +42,7 @@ OPENAI_API_KEY=***OPENAI_KEY_REMOVED******OPENAI_KEY_REMOVED***
 
 ## 🔑 **Configuração de Credenciais**
 
-O Cloud Insights usa uma **estratégia simplificada** para credenciais AWS:
+O Jera Cloud Analyzer usa uma **estratégia simplificada** para credenciais AWS:
 
 ### **🥇 Opção 1: Variáveis de Ambiente (Recomendado)**
 ```bash
@@ -167,13 +167,13 @@ Seu usuário AWS precisa das seguintes permissões:
 
 ### **🏢 Integração com Jera CLI**
 
-O Cloud Insights detecta automaticamente sessões do `jera-cli`:
+O Jera Cloud Analyzer detecta automaticamente sessões do `jera-cli`:
 
 ```bash
 # 1. Faça login na Jera
 jera-cli auth login
 
-# 2. Use o Cloud Insights normalmente
+# 2. Use o Jera Cloud Analyzer normalmente
 cloud-insights -q "Análise de custos"
 ```
 

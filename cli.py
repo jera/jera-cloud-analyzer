@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Cloud Insights CLI - Análise inteligente de custos AWS com IA
+Jera Cloud Analyzer CLI - Análise inteligente de custos AWS com IA
 """
 
 import os
@@ -222,7 +222,7 @@ def setup_environment():
             return False
 
 def run_query(question: str):
-    """Executa uma consulta no agente Cloud Insights."""
+    """Executa uma consulta no agente Jera Cloud Analyzer."""
     try:
         print(f"🤖 Processando: \"{question}\"\n")
         
@@ -262,7 +262,7 @@ def show_examples():
 
 def show_version():
     """Mostra informações de versão e capacidades."""
-    print("🔍 Cloud Insights CLI v1.0.0")
+    print("🔍 Jera Cloud Analyzer CLI v1.0.0")
     print("📊 Análise inteligente de custos AWS com IA")
     print()
     print("🛠️  Capacidades:")
@@ -283,7 +283,7 @@ def main():
     """Função principal do CLI."""
     parser = argparse.ArgumentParser(
         prog='cloud-insights',
-        description='🔍 Cloud Insights - Análise inteligente de custos AWS com IA',
+        description='🔍 Jera Cloud Analyzer - Análise inteligente de custos AWS com IA',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemplos de uso:

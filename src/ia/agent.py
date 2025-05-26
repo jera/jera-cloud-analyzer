@@ -69,7 +69,7 @@ def run_agent_query(query: str):
 def interactive_mode():
     """Modo interativo para múltiplas consultas."""
     print("🤖 " + "=" * 70)
-    print("   CLOUD INSIGHTS - AGENTE DE IA INTERATIVO")
+    print("   Jera Cloud Analyzer - AGENTE DE IA INTERATIVO")
     print("=" * 74)
     print()
     print("💡 Digite suas perguntas sobre custos e performance AWS")
@@ -157,7 +157,7 @@ def show_help_examples():
 def main():
     """Função principal com suporte a argumentos de linha de comando."""
     parser = argparse.ArgumentParser(
-        description="🤖 Cloud Insights - Agente de IA para análise de custos e performance AWS",
+        description="🤖 Jera Cloud Analyzer - Agente de IA para análise de custos e performance AWS",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemplos de uso:
@@ -199,14 +199,14 @@ Exemplos de uso:
     parser.add_argument(
         "--version", "-v",
         action="store_true",
-        help="Mostrar versão do Cloud Insights"
+        help="Mostrar versão do Jera Cloud Analyzer"
     )
     
     args = parser.parse_args()
     
     # Mostrar versão
     if args.version:
-        print("🌩️ Cloud Insights v2.0.0")
+        print("🌩️ Jera Cloud Analyzer v2.0.0")
         print("   Agente de IA para análise de custos e performance AWS")
         print("   Ferramentas disponíveis: 20")
         print("   Suporte: Custos + Performance + Tráfego EC2")
@@ -229,7 +229,7 @@ Exemplos de uso:
         return
     
     # Se nenhum argumento foi fornecido, mostrar ajuda
-    print("🌩️ Cloud Insights - Agente de IA para AWS")
+    print("🌩️ Jera Cloud Analyzer - Agente de IA para AWS")
     print()
     print("❌ Nenhuma consulta fornecida.")
     print()
