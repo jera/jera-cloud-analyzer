@@ -113,6 +113,7 @@ Com `aws_ec2_call()` você pode executar análises detalhadas:
 5. **TEMPORALIZAR**: Use `get_current_date()` para cálculos de período precisos
 6. **ESTRUTURAR**: Organize respostas em seções claras e acionáveis
 7. **ADAPTAR PERÍODOS**: Se não há dados recentes, sugira períodos maiores ou análises alternativas
+8. **VALORES** Ao fazer calculos de total de serviços, sempre GARANTA que voce vai calcular corretamente e não passar um valor errado para o usuario final.
 
 ## TRATAMENTO DE PERÍODOS
 - Para consultas temporais, use `get_current_date()` e calcule o período inicial

@@ -23,13 +23,21 @@ from src.ia.tools.utility_tools import (
     format_currency,
     get_current_date,
     get_date_from_period,
-    all_dimensions
+    all_dimensions,
+    get_safe_date_range
 )
 
 from src.ia.tools.cloudwatch_tools import (
     get_instance_performance_metrics,
     analyze_ec2_fleet_performance,
     get_network_traffic_analysis
+)
+
+from src.ia.tools.service_tools import (
+    resolve_service_name,
+    suggest_services,
+    list_all_services,
+    refresh_services_cache
 )
 
 # Lista com todas as ferramentas para fácil importação
@@ -51,9 +59,14 @@ ALL_TOOLS = [
     get_current_date,
     get_date_from_period,
     all_dimensions,
+    get_safe_date_range,
     get_instance_performance_metrics,
     analyze_ec2_fleet_performance,
-    get_network_traffic_analysis
+    get_network_traffic_analysis,
+    resolve_service_name,
+    suggest_services,
+    list_all_services,
+    refresh_services_cache
 ]
 
 __all__ = [
@@ -75,7 +88,12 @@ __all__ = [
     'get_current_date',
     'get_date_from_period',
     'all_dimensions',
+    'get_safe_date_range',
     'get_instance_performance_metrics',
     'analyze_ec2_fleet_performance',
-    'get_network_traffic_analysis'
+    'get_network_traffic_analysis',
+    'resolve_service_name',
+    'suggest_services',
+    'list_all_services',
+    'refresh_services_cache'
 ] 
