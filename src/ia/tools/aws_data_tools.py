@@ -1924,4 +1924,187 @@ def _generate_orphaned_resources_recommendations(orphaned_data: Dict[str, Any]) 
     return recommendations
 
 
+@tool
+def analyze_multiple_tags_costs(tag_keys: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> str:
+    """
+    Analisa custos de múltiplas tags simultaneamente para um período específico.
+    
+    Args:
+        tag_keys: Lista de chaves de tags separadas por vírgula (ex: "Environment,Project,kubernetes.io/cluster/jera-cluster")
+        start_date: Data inicial no formato YYYY-MM-DD (opcional, padrão: 30 dias atrás)
+        end_date: Data final no formato YYYY-MM-DD (opcional, padrão: hoje)
+        
+    Returns:
+        JSON com análise de custos para cada tag especificada
+        
+    Exemplos:
+    - analyze_multiple_tags_costs("Environment,Project,Owner")
+    - analyze_multiple_tags_costs("aws:eks:cluster-name,kubernetes.io/cluster/jera-cluster", "2024-05-01", "2024-05-31")
+    """
+    print(f"ANALISANDO CUSTOS DE MÚLTIPLAS TAGS: {tag_keys}")
+    
+    try:
+        # Processar lista de tags
+        tag_list = [tag.strip() for tag in tag_keys.split(',') if tag.strip()]
+        
+        if not tag_list:
+            return json.dumps({
+                "error": "Nenhuma tag válida fornecida",
+                "suggestion": "Forneça uma lista de tags separadas por vírgula",
+                "example": "Environment,Project,Owner"
+            }, ensure_ascii=False, indent=2)
+        
+        cost_explorer = CostExplorer()
+        
+        # Definir período de análise
+        if not end_date:
+            end_date = datetime.now().strftime('%Y-%m-%d')
+        if not start_date:
+            start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        
+        # Validar e ajustar as datas
+        validated_start, validated_end = validate_and_adjust_date_range(start_date, end_date)
+        
+        analysis_result = {
+            "analysis_timestamp": datetime.now().isoformat(),
+            "analysis_period": {
+                "start_date": validated_start,
+                "end_date": validated_end,
+                "days": (datetime.strptime(validated_end, '%Y-%m-%d') - datetime.strptime(validated_start, '%Y-%m-%d')).days
+            },
+            "tags_analyzed": tag_list,
+            "summary": {
+                "total_tags_requested": len(tag_list),
+                "tags_with_costs": 0,
+                "tags_without_costs": 0,
+                "total_cost_usd": 0.0,
+                "total_cost_brl": 0.0
+            },
+            "tag_analysis": []
+        }
+        
+        # Analisar cada tag individualmente
+        for tag_key in tag_list:
+            print(f"Analisando tag: {tag_key}")
+            
+            try:
+                # Buscar custos por esta tag específica
+                tag_cost_response = cost_explorer.get_cost_by_tag(tag_key, validated_start, validated_end)
+                
+                tag_analysis = {
+                    "tag_key": tag_key,
+                    "has_costs": False,
+                    "total_cost_usd": 0.0,
+                    "total_cost_brl": 0.0,
+                    "tag_values": [],
+                    "error": None
+                }
+                
+                # Processar resultados
+                if tag_cost_response.get('ResultsByTime'):
+                    tag_values_costs = {}
+                    
+                    for period in tag_cost_response['ResultsByTime']:
+                        for group in period.get('Groups', []):
+                            tag_value = group.get('Keys', [''])[0]
+                            cost_usd = float(group.get('Metrics', {}).get('UnblendedCost', {}).get('Amount', '0'))
+                            
+                            # Limpar valor da tag (remover prefixos se houver)
+                            if '$' in tag_value:
+                                tag_value = tag_value.split('$')[-1]
+                            tag_value = tag_value.rstrip('$')
+                            
+                            # Ignorar valores vazios ou "NoTag"
+                            if tag_value and tag_value.lower() not in ['notag', 'no tag', '']:
+                                if tag_value not in tag_values_costs:
+                                    tag_values_costs[tag_value] = 0.0
+                                tag_values_costs[tag_value] += cost_usd
+                    
+                    # Organizar valores por custo
+                    if tag_values_costs:
+                        tag_analysis["has_costs"] = True
+                        tag_analysis["total_cost_usd"] = sum(tag_values_costs.values())
+                        tag_analysis["total_cost_brl"] = tag_analysis["total_cost_usd"] * 5.5  # Taxa aproximada
+                        
+                        # Criar lista de valores ordenada por custo
+                        for tag_value, cost_usd in sorted(tag_values_costs.items(), key=lambda x: x[1], reverse=True):
+                            tag_analysis["tag_values"].append({
+                                "value": tag_value,
+                                "cost_usd": round(cost_usd, 2),
+                                "cost_brl": round(cost_usd * 5.5, 2),
+                                "percentage": round((cost_usd / tag_analysis["total_cost_usd"]) * 100, 1) if tag_analysis["total_cost_usd"] > 0 else 0
+                            })
+                        
+                        # Atualizar totais gerais
+                        analysis_result["summary"]["tags_with_costs"] += 1
+                        analysis_result["summary"]["total_cost_usd"] += tag_analysis["total_cost_usd"]
+                        analysis_result["summary"]["total_cost_brl"] += tag_analysis["total_cost_brl"]
+                        
+                        print(f"✅ Tag '{tag_key}': ${tag_analysis['total_cost_usd']:.2f} encontrados")
+                    else:
+                        analysis_result["summary"]["tags_without_costs"] += 1
+                        print(f"⚠️  Tag '{tag_key}': Nenhum custo encontrado")
+                else:
+                    analysis_result["summary"]["tags_without_costs"] += 1
+                    print(f"⚠️  Tag '{tag_key}': Nenhum dado retornado")
+                
+            except Exception as e:
+                tag_analysis["error"] = str(e)
+                analysis_result["summary"]["tags_without_costs"] += 1
+                print(f"❌ Erro ao analisar tag '{tag_key}': {e}")
+            
+            analysis_result["tag_analysis"].append(tag_analysis)
+        
+        # Gerar insights e recomendações
+        analysis_result["insights"] = []
+        analysis_result["recommendations"] = []
+        
+        if analysis_result["summary"]["tags_with_costs"] == 0:
+            analysis_result["insights"].append("Nenhuma das tags especificadas possui custos associados no período analisado")
+            analysis_result["recommendations"].extend([
+                "Verifique se as tags existem nos recursos da conta AWS",
+                "Considere usar um período de análise maior",
+                "Verifique se os recursos estão sendo tagueados corretamente"
+            ])
+        else:
+            # Identificar tag mais cara
+            tags_with_costs = [tag for tag in analysis_result["tag_analysis"] if tag["has_costs"]]
+            if tags_with_costs:
+                most_expensive_tag = max(tags_with_costs, key=lambda x: x["total_cost_usd"])
+                analysis_result["insights"].append(f"Tag mais cara: '{most_expensive_tag['tag_key']}' com ${most_expensive_tag['total_cost_usd']:.2f}")
+            
+            # Recomendações baseadas nos resultados
+            if analysis_result["summary"]["total_cost_usd"] > 100:
+                analysis_result["recommendations"].append("Considere implementar políticas de cost optimization para as tags com maior custo")
+            
+            if analysis_result["summary"]["tags_without_costs"] > 0:
+                analysis_result["recommendations"].append(f"{analysis_result['summary']['tags_without_costs']} tags não possuem custos - verifique se estão sendo aplicadas corretamente")
+        
+        # Adicionar informações sobre tags Kubernetes específicas
+        k8s_tags = [tag for tag in tag_list if 'kubernetes' in tag.lower() or 'eks' in tag.lower()]
+        if k8s_tags:
+            analysis_result["kubernetes_insights"] = {
+                "kubernetes_tags_found": len(k8s_tags),
+                "tags": k8s_tags,
+                "note": "Tags relacionadas ao Kubernetes/EKS detectadas - custos podem estar distribuídos entre diferentes recursos (EC2, EBS, ELB, etc.)"
+            }
+        
+        print(f"Análise concluída: {analysis_result['summary']['tags_with_costs']}/{len(tag_list)} tags com custos")
+        
+        return json.dumps(analysis_result, cls=JsonEncoder, ensure_ascii=False, indent=2)
+        
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        print(f"Erro na análise de múltiplas tags: {e}")
+        print(f"Traceback:\n{tb}")
+        
+        return json.dumps({
+            "error": f"Erro na análise de múltiplas tags",
+            "details": str(e),
+            "traceback": tb,
+            "suggestion": "Verifique se as tags estão no formato correto e se você tem permissões adequadas"
+        }, ensure_ascii=False, indent=2)
+
+
  
