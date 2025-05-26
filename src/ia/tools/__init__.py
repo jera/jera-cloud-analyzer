@@ -26,6 +26,12 @@ from src.ia.tools.utility_tools import (
     all_dimensions
 )
 
+from src.ia.tools.cloudwatch_tools import (
+    get_instance_performance_metrics,
+    analyze_ec2_fleet_performance,
+    get_network_traffic_analysis
+)
+
 # Lista com todas as ferramentas para fácil importação
 ALL_TOOLS = [
     get_top_services,
@@ -44,7 +50,10 @@ ALL_TOOLS = [
     format_currency,
     get_current_date,
     get_date_from_period,
-    all_dimensions
+    all_dimensions,
+    get_instance_performance_metrics,
+    analyze_ec2_fleet_performance,
+    get_network_traffic_analysis
 ]
 
 __all__ = [
@@ -65,5 +74,8 @@ __all__ = [
     'format_currency',
     'get_current_date',
     'get_date_from_period',
-    'all_dimensions'
+    'all_dimensions',
+    'get_instance_performance_metrics',
+    'analyze_ec2_fleet_performance',
+    'get_network_traffic_analysis'
 ] 
