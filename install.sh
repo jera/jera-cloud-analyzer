@@ -1,11 +1,11 @@
 #!/bin/bash
 # =================================================================
-# Cloud Insights CLI - Installation Script
+# Jera Cloud Analyzer CLI - Installation Script
 # =================================================================
 
 set -e  # Exit on any error
 
-echo "🔍 Cloud Insights CLI - Installation Script"
+echo "🔍 Jera Cloud Analyzer CLI - Installation Script"
 echo "============================================"
 
 # Colors for output
@@ -93,9 +93,9 @@ $PIP_CMD install -r requirements.txt
 print_success "Dependências instaladas"
 
 # Install package in editable mode
-print_step "Instalando Cloud Insights CLI..."
+print_step "Instalando Jera Cloud Analyzer CLI..."
 $PIP_CMD install -e .
-print_success "Cloud Insights CLI instalado"
+print_success "Jera Cloud Analyzer CLI instalado"
 
 # Verify installation and create fallback if needed
 print_step "Verificando instalação..."
@@ -122,7 +122,7 @@ else
     # Create a wrapper script
     cat > "$PYTHON_SCRIPTS_DIR/cloud-insights" << EOF
 #!/bin/bash
-# Cloud Insights CLI Wrapper
+# Jera Cloud Analyzer CLI Wrapper
 cd "$INSTALL_DIR"
 python3 "$INSTALL_DIR/cli.py" "\$@"
 EOF
