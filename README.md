@@ -269,6 +269,63 @@ Este projeto está licenciado sob a MIT License - veja o arquivo [LICENSE](LICEN
 - 🐛 **Issues**: [GitHub Issues](https://github.com/jera/jera-cloud-analyzer/issues)
 - 📖 **Docs**: [Documentation](https://github.com/jera/jera-cloud-analyzer/blob/main/README.md)
 
+## 📊 **Auditoria e Logging**
+
+### **🔍 Dados Brutos AWS Logados**
+
+O Jera Cloud Analyzer registra **automaticamente** todos os valores brutos retornados pela AWS para fins de auditoria e comparação:
+
+```bash
+# Arquivo de log gerado automaticamente
+aws_raw_data.log
+```
+
+**Benefícios:**
+- ✅ **Auditoria completa** de todas as consultas de custos
+- 🔍 **Comparação** entre dados brutos e processados pela IA
+- 🐛 **Debug** de discrepâncias ou valores inesperados
+- 📈 **Histórico** completo para análise temporal
+
+### **📝 Exemplo de Log**
+```json
+{
+  "timestamp": "2024-01-15T10:30:45",
+  "operation": "get_cost_and_usage_by_service",
+  "raw_response": {
+    "ResultsByTime": [
+      {
+        "Groups": [
+          {
+            "Keys": ["Amazon EC2"],
+            "Metrics": {
+              "UnblendedCost": {
+                "Amount": "1234.56",
+                "Unit": "USD"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "account_id": "123456789012"
+}
+```
+
+### **🔧 Análise de Logs**
+```bash
+# Ver consultas de hoje
+grep "$(date +%Y-%m-%d)" aws_raw_data.log
+
+# Extrair valores de custo brutos
+grep "RAW_DATA" aws_raw_data.log | jq '.raw_response.ResultsByTime[].Groups[].Metrics.UnblendedCost.Amount'
+
+# Monitorar em tempo real
+tail -f aws_raw_data.log
+```
+
+📖 **Documentação completa**: [LOGGING.md](LOGGING.md)
+
 ---
 
 **🚀 Feito com ❤️ para otimizar seus custos AWS**  
