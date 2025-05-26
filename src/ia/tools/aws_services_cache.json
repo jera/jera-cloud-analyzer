@@ -1,0 +1,29 @@
+{
+  "timestamp": 1748277816.4108014,
+  "services": [
+    "AWS Cost Explorer",
+    "AWS Key Management Service",
+    "AWS Lambda",
+    "AWS Secrets Manager",
+    "AWS WAF",
+    "Amazon API Gateway",
+    "Amazon CloudFront",
+    "Amazon DevOps Guru",
+    "Amazon EC2 Container Registry (ECR)",
+    "EC2 - Other",
+    "Amazon Elastic Compute Cloud - Compute",
+    "Amazon Elastic Container Service for Kubernetes",
+    "Amazon Elastic Load Balancing",
+    "Amazon Managed Service for Prometheus",
+    "Amazon Relational Database Service",
+    "Amazon Route 53",
+    "Amazon Simple Notification Service",
+    "Amazon Simple Queue Service",
+    "Amazon Simple Storage Service",
+    "Amazon Virtual Private Cloud",
+    "AmazonCloudWatch",
+    "Tax"
+  ],
+  "total_services": 22,
+  "last_updated": "2025-05-26T12:43:36.410804"
+}
