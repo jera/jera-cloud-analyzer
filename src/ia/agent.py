@@ -67,5 +67,5 @@ def run_agent_query(query: str):
 
 # Executar o agente com uma pergunta de exemplo
 if __name__ == "__main__":
-    query = f"Quanto custa a instância Valhalla?"
+    query = f"Mostre recursos sem tags de governança"
     run_agent_query(query)
