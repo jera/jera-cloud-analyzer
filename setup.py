@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Setup configuration for Cloud Insights CLI
+Setup configuration for Jera Cloud Analyzer CLI
 """
 
 from setuptools import setup, find_packages
@@ -42,7 +42,7 @@ setup(
     description="🔍 Análise inteligente de custos AWS com IA",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="Cloud Insights Team",
+    author="Jera Cloud Analyzer Team",
     author_email="contact@cloudinsights.dev",
     url="https://github.com/your-org/cloud-insights",
     

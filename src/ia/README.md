@@ -1,4 +1,4 @@
-# Agente de IA para AWS Cloud Insights
+# Agente de IA para AWS Jera Cloud Analyzer
 
 Este módulo implementa um agente de IA para análise de custos da AWS utilizando o framework Haystack.
 

@@ -1,5 +1,5 @@
 # =================================================================
-# Cloud Insights CLI - Requirements
+# Jera Cloud Analyzer CLI - Requirements
 # =================================================================
 
 # Core Framework & AI

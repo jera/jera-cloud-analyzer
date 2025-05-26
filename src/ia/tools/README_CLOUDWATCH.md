@@ -235,4 +235,4 @@ analyze_ec2_fleet_performance(tag_key="Team", tag_value="backend")
 
 ## 🚀 **Próximos Passos**
 
-Essas ferramentas transformam o Cloud Insights de um analisador de custos em uma **plataforma completa de observabilidade financeira e operacional**, fornecendo insights acionáveis para otimização contínua da infraestrutura AWS. 
+Essas ferramentas transformam o Jera Cloud Analyzer de um analisador de custos em uma **plataforma completa de observabilidade financeira e operacional**, fornecendo insights acionáveis para otimização contínua da infraestrutura AWS. 
