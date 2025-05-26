@@ -101,8 +101,8 @@ print_success "Jera Cloud Analyzer CLI instalado"
 print_step "Verificando instalação..."
 
 # Test if command is available
-if command -v cloud-insights &> /dev/null; then
-    print_success "Comando cloud-insights instalado com sucesso"
+if command -v cloud-analyzer &> /dev/null; then
+    print_success "Comando cloud-analyzer instalado com sucesso"
 else
     print_warning "Entry point não funcionou, criando wrapper alternativo..."
     
@@ -120,15 +120,15 @@ else
     mkdir -p "$PYTHON_SCRIPTS_DIR"
     
     # Create a wrapper script
-    cat > "$PYTHON_SCRIPTS_DIR/cloud-insights" << EOF
+    cat > "$PYTHON_SCRIPTS_DIR/cloud-analyzer" << EOF
 #!/bin/bash
 # Jera Cloud Analyzer CLI Wrapper
 cd "$INSTALL_DIR"
 python3 "$INSTALL_DIR/cli.py" "\$@"
 EOF
     
-    chmod +x "$PYTHON_SCRIPTS_DIR/cloud-insights"
-    print_success "Wrapper script criado em $PYTHON_SCRIPTS_DIR/cloud-insights"
+    chmod +x "$PYTHON_SCRIPTS_DIR/cloud-analyzer"
+    print_success "Wrapper script criado em $PYTHON_SCRIPTS_DIR/cloud-analyzer"
     
     # Add to PATH if not already there
     if [[ ":$PATH:" != *":$PYTHON_SCRIPTS_DIR:"* ]]; then
@@ -178,14 +178,14 @@ else
 fi
 
 # Test command availability and show version
-if command -v cloud-insights &> /dev/null; then
-    print_success "Comando cloud-insights disponível globalmente"
+if command -v cloud-analyzer &> /dev/null; then
+    print_success "Comando cloud-analyzer disponível globalmente"
     echo
-    cloud-insights --version
-elif [ -x "$PYTHON_SCRIPTS_DIR/cloud-insights" ]; then
-    print_success "Comando cloud-insights disponível via wrapper"
+    cloud-analyzer --version
+elif [ -x "$PYTHON_SCRIPTS_DIR/cloud-analyzer" ]; then
+    print_success "Comando cloud-analyzer disponível via wrapper"
     echo
-    "$PYTHON_SCRIPTS_DIR/cloud-insights" --version
+    "$PYTHON_SCRIPTS_DIR/cloud-analyzer" --version
 else
     print_warning "Comando global não disponível, mas CLI funcional"
     echo
@@ -198,11 +198,11 @@ echo "=========================="
 echo
 
 # Provide usage instructions based on what works
-if command -v cloud-insights &> /dev/null; then
-    echo "✅ Use: cloud-insights -q \"sua pergunta\""
-elif [ -x "$PYTHON_SCRIPTS_DIR/cloud-insights" ]; then
-    echo "✅ Use: cloud-insights -q \"sua pergunta\" (após reiniciar terminal)"
-    echo "   Ou: $PYTHON_SCRIPTS_DIR/cloud-insights -q \"sua pergunta\""
+if command -v cloud-analyzer &> /dev/null; then
+    echo "✅ Use: cloud-analyzer -q \"sua pergunta\""
+elif [ -x "$PYTHON_SCRIPTS_DIR/cloud-analyzer" ]; then
+    echo "✅ Use: cloud-analyzer -q \"sua pergunta\" (após reiniciar terminal)"
+    echo "   Ou: $PYTHON_SCRIPTS_DIR/cloud-analyzer -q \"sua pergunta\""
 else
     echo "✅ Use: python3 $INSTALL_DIR/cli.py -q \"sua pergunta\""
 fi
@@ -210,8 +210,8 @@ fi
 echo
 echo "📋 Próximos passos:"
 echo "1. Configure suas credenciais no arquivo .env"
-echo "2. Teste: cloud-insights --examples"
-echo "3. Execute: cloud-insights -q \"Olá, você está funcionando?\""
+echo "2. Teste: cloud-analyzer --examples"
+echo "3. Execute: cloud-analyzer -q \"Olá, você está funcionando?\""
 echo
 
 if [ "$1" = "--venv" ] || [ "$1" = "-v" ]; then
@@ -221,7 +221,7 @@ if [ "$1" = "--venv" ] || [ "$1" = "-v" ]; then
 fi
 
 echo "📚 Documentação completa: README.md"
-echo "🆘 Suporte: https://github.com/your-org/cloud-insights/issues"
+echo "🆘 Suporte: https://github.com/your-org/cloud-analyzer/issues"
 echo
 echo "🔧 Se houver problemas, tente:"
 echo "   1. Reiniciar o terminal"
