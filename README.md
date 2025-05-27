@@ -56,7 +56,7 @@ cd jera-cloud-analyzer
 nano .env
 
 # Adicione apenas:
-OPENAI_API_KEY=***OPENAI_KEY_REMOVED******OPENAI_KEY_REMOVED*** 
+OPENAI_API_KEY=
 ```
 
 ### **3. Pronto para usar!**
@@ -134,8 +134,8 @@ aws sso login
 ### **🥈 Variáveis de Ambiente**
 ```bash
 # No arquivo .env
-AWS_ACCESS_KEY_ID=***AWS_KEY_REMOVED***...
-***AWS_SECRET_REMOVED***=...
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_REMOVED=...
 AWS_DEFAULT_REGION=us-east-1
 ```
 
