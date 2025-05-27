@@ -985,6 +985,7 @@ def aws_ec2_call(method: str, instance_ids: Optional[str] = None, volume_ids: Op
             }
             
         print(f"{client_type.upper()} Call - Success: {method} (has_data: {has_data})")
+        print(f"Response: {response}")
         return json.dumps(response, cls=JsonEncoder, ensure_ascii=False, indent=2)
         
     except AttributeError as e:
