@@ -39,6 +39,9 @@ diskcache>=5.4.0                 # Di***OPENAI_KEY_REMOVED***based cache for ser
 # Date/Time utilities
 python-dateutil>=2.8.0          # Date parsing and manipulation
 
+# MCP
+mcp[cli]>=1.9.0
+
 # =================================================================
 # Python Version Requirement: >= 3.8
 # =================================================================
