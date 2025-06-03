@@ -20,13 +20,14 @@ RUN pip install --no-cache-dir uv
 
 # Copiar arquivos de configuração primeiro (para cache do Docker)
 COPY pyproject.toml ./
+COPY uv.lock ./
 COPY README.md ./
 
 # Copiar código fonte
 COPY src/ src/
 
 # Instalar dependências do projeto no sistema Python
-RUN uv pip install --system --no-cache-dir -e .
+RUN uv sync --frozen --no-dev
 
 # Criar usuário não-root para segurança
 RUN useradd --create-home --shell /bin/bash appuser && \
@@ -46,4 +47,5 @@ EXPOSE 6274
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import src.mcp.server; print('OK')" || exit 1
 
-CMD ["fastmcp", "run", "src/mcp/server.py", "-t", "streamable-http"]
+CMD ["uv", "run", "src/mcp/server.py"]
+# CMD ["fastmcp", "run", "src/mcp/server.py", "-t", "streamable-http", "-l", "debug"]

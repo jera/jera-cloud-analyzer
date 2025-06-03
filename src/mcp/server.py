@@ -7,6 +7,8 @@ Este servidor expõe todas as ferramentas de análise como tools MCP.
 import sys
 import os
 from typing import Optional
+from starlette.requests import Request
+from starlette.responses import PlainTextResponse
 
 # Adicionar o diretório raiz do projeto ao path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
@@ -368,17 +370,21 @@ def mcp_refresh_services_cache() -> str:
     """
     return refresh_services_cache()
 
-# if __name__ == "__main__":
-#     """Função principal para execução do servidor."""
-#     print("🚀 Iniciando Cloud Insights MCP Server...")
-#     print("📊 28 ferramentas especializadas carregadas")
+@mcp.custom_route("/health", methods=["GET"])
+async def health_check(request: Request) -> PlainTextResponse:
+    return PlainTextResponse("OK")
+
+if __name__ == "__main__":
+    """Função principal para execução do servidor."""
+    print("🚀 Iniciando Cloud Insights MCP Server...")
+    print("📊 28 ferramentas especializadas carregadas")
     
-#     # mcp.run(transport="streamable-http", port=8000, path="/mcp")
-#     mcp.run(
-#         transport="streamable-http",
-#         host="127.0.0.1",
-#         port=8000,
-#         path="/mcp",
-#         log_level="debug",
-#     )
+    # mcp.run(transport="streamable-http", port=8000, path="/mcp")
+    mcp.run(
+        transport="streamable-http",
+        host="0.0.0.0",
+        port=8000,
+        path="/mcp",
+        log_level="debug",
+    )
     
