@@ -109,7 +109,7 @@ def mcp_discover_account_resources(limit: int = 5) -> str:
     return discover_account_resources(limit)
 
 @mcp.tool()
-def mcp_validate_and_analyze_service(service_name: str) -> str:
+def mcp_validate_service(service_name: str) -> str:
     """
     Valida e analisa um serviço específico com sugestões e correções.
     
@@ -133,7 +133,7 @@ def mcp_get_account_context_data() -> str:
     return get_account_context_data()
 
 @mcp.tool()
-def mcp_check_account_data_availability() -> str:
+def mcp_check_data_availability() -> str:
     """
     Verifica a disponibilidade de dados na conta AWS.
     """
@@ -207,7 +207,7 @@ def mcp_identify_orphaned_resources(limit: int = 5) -> str:
     return identify_orphaned_resources(limit)
 
 @mcp.tool()
-def mcp_analyze_multiple_tags_costs(tag_keys: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> str:
+def mcp_analyze_tags_costs(tag_keys: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> str:
     """
     Analisa custos de múltiplas tags específicas.
     
@@ -219,7 +219,7 @@ def mcp_analyze_multiple_tags_costs(tag_keys: str, start_date: Optional[str] = N
     return analyze_multiple_tags_costs(tag_keys, start_date, end_date)
 
 @mcp.tool()
-def mcp_analyze_tag_specific_values(tag_key: str, tag_values: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> str:
+def mcp_analyze_tag_values(tag_key: str, tag_values: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> str:
     """
     Analisa custos de valores específicos de uma tag.
     
@@ -292,7 +292,7 @@ def mcp_get_safe_date_range(months_back: int = 1) -> str:
 # ===============================
 
 @mcp.tool()
-def mcp_get_instance_performance_metrics(instance_id: str, hours: int = 24, metrics: Optional[str] = None) -> str:
+def mcp_get_instance_metrics(instance_id: str, hours: int = 24, metrics: Optional[str] = None) -> str:
     """
     Obtém métricas de performance de uma instância EC2 específica via CloudWatch.
     
@@ -304,7 +304,7 @@ def mcp_get_instance_performance_metrics(instance_id: str, hours: int = 24, metr
     return get_instance_performance_metrics(instance_id, hours, metrics)
 
 @mcp.tool()
-def mcp_analyze_ec2_fleet_performance(tag_key: Optional[str] = None, tag_value: Optional[str] = None, hours: int = 24, max_instances: int = 10) -> str:
+def mcp_analyze_fleet_perf(tag_key: Optional[str] = None, tag_value: Optional[str] = None, hours: int = 24, max_instances: int = 10) -> str:
     """
     Analisa performance de uma frota de instâncias EC2.
     
@@ -317,7 +317,7 @@ def mcp_analyze_ec2_fleet_performance(tag_key: Optional[str] = None, tag_value: 
     return analyze_ec2_fleet_performance(tag_key, tag_value, hours, max_instances)
 
 @mcp.tool()
-def mcp_get_network_traffic_analysis(instance_id: str, days: int = 7) -> str:
+def mcp_get_network_analysis(instance_id: str, days: int = 7) -> str:
     """
     Analisa tráfego de rede de uma instância EC2.
     
