@@ -1,5 +1,5 @@
 # Dockerfile para Cloud Insights MCP Server
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 # Metadata
 LABEL maintainer="Jera Team <contato@jera.com.br>"
@@ -15,18 +15,18 @@ RUN apt-get update && apt-get install -y \
 # Configurar diretório de trabalho
 WORKDIR /app
 
+# Instalar uv para gerenciamento de dependências
+RUN pip install --no-cache-dir uv
+
 # Copiar arquivos de configuração primeiro (para cache do Docker)
 COPY pyproject.toml ./
 COPY README.md ./
 
-# Instalar uv para gerenciamento de dependências
-RUN pip install --no-cache-dir uv
-
 # Copiar código fonte
 COPY src/ src/
 
-# Instalar dependências do projeto
-RUN uv pip install --system -e .
+# Instalar dependências do projeto no sistema Python
+RUN uv pip install --system --no-cache-dir -e .
 
 # Criar usuário não-root para segurança
 RUN useradd --create-home --shell /bin/bash appuser && \
@@ -46,4 +46,4 @@ EXPOSE 6274
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import src.mcp.server; print('OK')" || exit 1
 
-CMD ["python", "src/mcp/server.py"]
+CMD ["fastmcp", "run", "src/mcp/server.py", "-t", "streamable-http"]

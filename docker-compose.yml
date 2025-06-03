@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
     image: cloud-insights-mcp:latest
     container_name: cloud-insights-mcp-server
-    restart: "no"  # Desabilitar restart automático para debug
+    restart: unless-stopped
     
     # Variáveis de ambiente AWS (configure conforme necessário)
     environment:
@@ -16,30 +16,23 @@ services:
       - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
-      - MCP_SERVER_MODE=stdio  # Modo do servidor MCP
     
-    # Mapeamento de portas (caso precise de modo HTTP no futuro)
+    # Mapeamento de portas para acesso HTTP
     ports:
-      - "8000:8000"
-      - "6277:6277"  # Porta MCP SSE
-      - "6274:6274"  # Porta MCP alternativa
-    
-    # Configurar stdin/stdout para modo interativo
-    stdin_open: true
-    tty: true
+      - "8000:8000"  # Porta principal MCP HTTP/SSE
     
     # Volumes para persistência (se necessário)
     volumes:
       - ./logs:/app/logs
       - ~/.aws:/home/appuser/.aws:ro  # Credenciais AWS (somente leitura)
     
-    # Health check desabilitado temporariamente
-    # healthcheck:
-    #   test: ["CMD", "python", "-c", "import src.mcp.server; print('OK')"]
-    #   interval: 30s
-    #   timeout: 10s
-    #   retries: 3
-    #   start_period: 40s
+    # Health check para verificar se servidor HTTP está respondendo
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/mcp"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     
     # Configurações de recursos
     deploy:

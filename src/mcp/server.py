@@ -14,7 +14,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # Importações MCP
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 # Importações das tools
 from src.ia.tools import (
@@ -368,10 +368,17 @@ def mcp_refresh_services_cache() -> str:
     """
     return refresh_services_cache()
 
-if __name__ == "__main__":
-    """Função principal para execução do servidor."""
-    print("🚀 Iniciando Cloud Insights MCP Server...")
-    print("📊 28 ferramentas especializadas carregadas")
+# if __name__ == "__main__":
+#     """Função principal para execução do servidor."""
+#     print("🚀 Iniciando Cloud Insights MCP Server...")
+#     print("📊 28 ferramentas especializadas carregadas")
     
-    mcp.run(transport='streamable-http')
+#     # mcp.run(transport="streamable-http", port=8000, path="/mcp")
+#     mcp.run(
+#         transport="streamable-http",
+#         host="127.0.0.1",
+#         port=8000,
+#         path="/mcp",
+#         log_level="debug",
+#     )
     

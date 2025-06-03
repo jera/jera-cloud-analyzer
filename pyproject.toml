@@ -4,113 +4,104 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cloud-insights"
-version = "2.0.0"
-description = "Jera Cloud Analyzer - Agente de IA para análise de custos e performance AWS"
-authors = [
-    {name = "Jera Team", email = "contato@jera.com.br"}
-]
+version = "1.0.0"
+description = "Analisador de custos AWS com insights inteligentes"
 readme = "README.md"
-license = {text = "MIT"}
-requires-python = ">=3.8.1"
-keywords = ["aws", "cost-analysis", "ai", "mcp", "finops"]
+requires-python = ">=3.12"
+license = "MIT"
+keywords = ["aws", "cost", "analysis", "cloud", "mcp"]
+authors = [
+  { name = "Jera", email = "dev@jera.com.br" },
+]
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: System :: Monitoring",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: System :: Systems Administration",
 ]
 
 dependencies = [
-    "mcp>=1.0.0",
-    "boto3>=1.35.0",
-    "python-dotenv>=1.0.0",
-    "haystack-ai>=2.8.0",
-    "openai>=1.0.0",
-    "fastapi>=0.100.0",
-    "uvicorn>=0.20.0",
-    "pandas>=1.5.0",
-    "python-dateutil>=2.8.0",
-    "requests>=2.28.0",
-    "pydantic>=2.0.0"
+  "boto3>=1.34.0",
+  "click>=8.1.0",
+  "rich>=13.7.0",
+  "python-dateutil>=2.8.2",
+  "requests>=2.31.0",
+  "pydantic>=2.5.0",
+  "mcp[cli]>=1.0.0",
+  "starlette>=0.37.0",
+  "uvicorn>=0.24.0",
+  "haystack-ai>=2.8.0",
+  "openai>=1.0.0",
+  "pandas>=1.5.0",
+  "python-dotenv>=1.0.0",
+  "fastapi>=0.100.0",
+  "fastmcp>=2.6.1",
+  "botocore>=1.38.28",
+  "argparse>=1.4.0",
+  "pathlib>=1.0.1",
+  "numpy>=2.2.6",
+  "urllib3>=2.4.0",
+  "pyyaml>=6.0.2",
+  "setuptools>=80.9.0",
+  "wheel>=0.45.1",
+  "diskcache>=5.6.3",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.21.0",
-    "black>=23.0.0",
-    "isort>=5.12.0",
-    "flake8>=6.0.0",
-    "mypy>=1.5.0"
+  "pytest>=7.4.0",
+  "pytest-cov>=4.1.0",
+  "black>=23.7.0",
+  "isort>=5.12.0",
+  "flake8>=6.0.0",
+  "mypy>=1.5.0",
+  "pre-commit>=3.3.0",
 ]
 
-[project.scripts]
-cloud-insights = "src.ia.agent:main"
-cloud-insights-mcp = "run_mcp_server:main"
-
 [project.urls]
-Homepage = "https://github.com/jera/cloud-insights"
-Repository = "https://github.com/jera/cloud-insights.git"
 Documentation = "https://github.com/jera/cloud-insights#readme"
-"Bug Tracker" = "https://github.com/jera/cloud-insights/issues"
+Issues = "https://github.com/jera/cloud-insights/issues"
+Source = "https://github.com/jera/cloud-insights"
+
+[project.scripts]
+cloud-insights = "src.main:main"
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/.github",
+  "/docs",
+  "/tests",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
 
 [tool.black]
-line-length = 100
-target-version = ['py38']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
+target-version = ["py39"]
+line-length = 88
+skip-string-normalization = true
 
 [tool.isort]
 profile = "black"
-line_length = 100
 multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-ensure_newline_before_comments = true
+line_length = 88
+known_first_party = ["src"]
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true
-disallow_untyped_decorators = true
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_equality = true
 
-[[tool.mypy.overrides]]
-module = [
-    "boto3.*",
-    "botocore.*",
-    "haystack.*",
-    "mcp.*"
-]
-ignore_missing_imports = true
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = ["tests"]
+pythonpath = ["src"]
