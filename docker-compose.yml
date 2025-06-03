@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  cloud-insights-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cloud-insights-mcp:latest
+    container_name: cloud-insights-mcp-server
+    restart: "no"  # Desabilitar restart automático para debug
+    
+    # Variáveis de ambiente AWS (configure conforme necessário)
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - MCP_SERVER_MODE=stdio  # Modo do servidor MCP
+    
+    # Mapeamento de portas (caso precise de modo HTTP no futuro)
+    ports:
+      - "8000:8000"
+      - "6277:6277"  # Porta MCP SSE
+      - "6274:6274"  # Porta MCP alternativa
+    
+    # Configurar stdin/stdout para modo interativo
+    stdin_open: true
+    tty: true
+    
+    # Volumes para persistência (se necessário)
+    volumes:
+      - ./logs:/app/logs
+      - ~/.aws:/home/appuser/.aws:ro  # Credenciais AWS (somente leitura)
+    
+    # Health check desabilitado temporariamente
+    # healthcheck:
+    #   test: ["CMD", "python", "-c", "import src.mcp.server; print('OK')"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 40s
+    
+    # Configurações de recursos
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+  # Versão alternativa para modo debug
+  cloud-insights-debug:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cloud-insights-mcp:latest
+    container_name: cloud-insights-debug
+    restart: "no"
+    profiles: ["debug"]  # Só executa com --profile debug
+    
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    
+    # Override command para debug
+    command: ["sleep", "infinity"]  # Manter container rodando
+    
+    stdin_open: true
+    tty: true
+    
+    volumes:
+      - ./logs:/app/logs
+      - ~/.aws:/home/appuser/.aws:ro
+
+# Network opcional para isolamento
+networks:
+  default:
+    name: cloud-insights-network 

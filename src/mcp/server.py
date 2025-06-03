@@ -368,31 +368,10 @@ def mcp_refresh_services_cache() -> str:
     """
     return refresh_services_cache()
 
-# ===============================
-# FUNÇÃO PRINCIPAL
-# ===============================
-
-async def run_server():
-    """Executa o servidor MCP."""
-    print("🚀 Iniciando Cloud Insights MCP Server...")
-    print(f"📊 {len(mcp._tools)} ferramentas de análise disponíveis")
-    
-    # Lista das ferramentas disponíveis
-    tool_names = list(mcp._tools.keys())
-    print("🛠️  Ferramentas disponíveis:")
-    for i, tool_name in enumerate(sorted(tool_names), 1):
-        category = "🔍" if "get_" in tool_name else "📈" if "analyze_" in tool_name else "🛠️"
-        print(f"   {i:2d}. {category} {tool_name}")
-    
-    print("\n✅ Servidor pronto para conexões MCP")
-
 if __name__ == "__main__":
-    import asyncio
+    """Função principal para execução do servidor."""
+    print("🚀 Iniciando Cloud Insights MCP Server...")
+    print("📊 28 ferramentas especializadas carregadas")
     
-    try:
-        # Executar o servidor
-        mcp.run(transport='stdio')
-    except Exception as e:
-        print(f"❌ Erro ao iniciar servidor: {e}")
-        import traceback
-        traceback.print_exc()
+    mcp.run(transport='streamable-http')
+    
