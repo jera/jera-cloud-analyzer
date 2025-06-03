@@ -19,7 +19,7 @@ services:
     
     # Mapeamento de portas para acesso HTTP
     ports:
-      - "8000:8000"  # Porta principal MCP HTTP/SSE
+      - "${EXTERNAL_PORT}:8000"  # Porta principal MCP HTTP/SSE
     
     # Volumes para persistência (se necessário)
     volumes:
