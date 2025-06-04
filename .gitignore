@@ -14,3 +14,4 @@ wheels/
 aws_raw_data.log
 aws_raw_data.log.*
 *.log
+functions.json

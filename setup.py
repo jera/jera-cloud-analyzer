@@ -10,26 +10,31 @@ from pathlib import Path
 this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text(encoding='utf-8')
 
-# Ler requirements do arquivo
-def read_requirements():
-    requirements_path = Path(__file__).parent / 'requirements.txt'
-    if requirements_path.exists():
-        with open(requirements_path, 'r') as f:
-            return [line.strip() for line in f if line.strip() and not line.startswith('#')]
-    return []
-
-# Requirements mínimos caso o arquivo não exista
-if not read_requirements():
-    requirements = [
-        'openai>=1.0.0',
-        'boto3>=1.26.0',
-        'haystack-ai>=2.0.0',
-        'python-dotenv>=0.19.0',
-        'pandas>=1.5.0',
-        'numpy>=1.24.0',
-        'requests>=2.28.0',
-        'python-dateutil>=2.8.0'
-    ]
+# Dependências definidas diretamente (sincronizadas com pyproject.toml)
+requirements = [
+    'boto3>=1.34.0',
+    'click>=8.1.0',
+    'rich>=13.7.0',
+    'python-dateutil>=2.8.2',
+    'requests>=2.31.0',
+    'pydantic>=2.5.0',
+    'mcp[cli]>=1.0.0',
+    'starlette>=0.37.0',
+    'uvicorn>=0.24.0',
+    'haystack-ai>=2.8.0',
+    'openai>=1.0.0',
+    'pandas>=1.5.0',
+    'python-dotenv>=1.0.0',
+    'fastapi>=0.100.0',
+    'fastmcp>=2.6.1',
+    'botocore>=1.38.28',
+    'numpy>=2.2.6',
+    'urllib3>=2.4.0',
+    'pyyaml>=6.0.2',
+    'setuptools>=80.9.0',
+    'wheel>=0.45.1',
+    'diskcache>=5.6.3',
+]
 
 setup(
     name="cloud-analyzer",
@@ -50,7 +55,7 @@ setup(
     python_requires=">=3.8",
     
     # Dependencies
-    install_requires=read_requirements(),
+    install_requires=requirements,
     
     # Console scripts - entry point principal
     entry_points={

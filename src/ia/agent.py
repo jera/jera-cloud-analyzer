@@ -17,15 +17,12 @@ from haystack.components.agents import Agent
 from haystack.components.generators.chat import OpenAIChatGenerator
 from haystack.dataclasses import ChatMessage
 
-# Importar todas as ferramentas da pasta tools
-from src.ia.tools import ALL_TOOLS
-# Importar o prompt do sistema
+from src.adapters.haystack_tools import HAYSTACK_TOOLS
 from src.ia.system_prompt import SYSTEM_PROMPT
 
-# Configurar o agente
 cost_analyzer = Agent(
     chat_generator=OpenAIChatGenerator(model=os.getenv("OPENAI_MODEL"), generation_kwargs={"max_tokens": 10000}),
-    tools=ALL_TOOLS,
+    tools=HAYSTACK_TOOLS,
     system_prompt=SYSTEM_PROMPT,
     exit_conditions=["text"],
     max_agent_steps=10,
@@ -207,8 +204,8 @@ Exemplos de uso:
     if args.version:
         print("🌩️ Jera Cloud Analyzer v2.0.0")
         print("   Agente de IA para análise de custos e performance AWS")
-        print("   Ferramentas disponíveis: 20")
-        print("   Suporte: Custos + Performance + Tráfego EC2")
+        print("   Ferramentas disponíveis: 28")
+        print("   Suporte: Custos + Performance + Tráfego EC2 + CloudWatch + Serviços")
         return
     
     # Mostrar exemplos

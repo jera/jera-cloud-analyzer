@@ -12,8 +12,6 @@ from decimal import Decimal
 # Adicionar o diretório raiz ao path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
-from haystack.tools import tool
-
 
 class JsonEncoder(json.JSONEncoder):
     """Encoder JSON personalizado para lidar com tipos especiais como Decimal e datetime."""
@@ -84,7 +82,6 @@ def validate_and_adjust_date_range(start_date: str, end_date: str) -> tuple[str,
         return start_date, end_date
 
 
-@tool
 def format_currency(amount: float, currency: str = "USD", to_brl: bool = True) -> str:
     """
     Formata valores monetários com conversão automática USD->BRL.
@@ -111,7 +108,6 @@ def format_currency(amount: float, currency: str = "USD", to_brl: bool = True) -
         return f"Erro na formatação: {str(e)}"
 
 
-@tool
 def get_current_date() -> str:
     """
     Retorna a data atual no formato YYYY-MM-DD.
@@ -127,7 +123,6 @@ def get_current_date() -> str:
         return f"Erro ao obter data: {str(e)}"
 
 
-@tool
 def get_date_from_period(period_description: str) -> Dict[str, str]:
     """
     Converte descrições de período em datas específicas com validação de limite.
@@ -189,7 +184,6 @@ def get_date_from_period(period_description: str) -> Dict[str, str]:
         }
 
 
-@tool
 def all_dimensions() -> List[str]:
     """
     Lista todas as dimensões disponíveis para análise de custos AWS.
@@ -227,8 +221,7 @@ def all_dimensions() -> List[str]:
     
     return dimensions
 
-
-@tool  
+  
 def get_safe_date_range(months_back: int = 1) -> Dict[str, str]:
     """
     Retorna um intervalo de datas seguro dentro dos limites do Cost Explorer.

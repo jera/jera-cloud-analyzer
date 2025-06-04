@@ -11,7 +11,6 @@ from typing import Optional, List, Dict, Any
 # Adicionar o diretório raiz ao path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
-from haystack.tools import tool
 from src.clouds.aws.cost_explorer import CostExplorer
 from src.clouds.aws.cost_analyzer import CostAnalyzer
 from src.ia.tools.utility_tools import validate_and_adjust_date_range
@@ -31,7 +30,6 @@ class JsonEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-@tool
 def get_top_services(start_date: Optional[str] = None, end_date: Optional[str] = None, limit: int = 5) -> str:
     """
     Obtém os top serviços mais caros da AWS.
@@ -98,7 +96,6 @@ def get_top_services(start_date: Optional[str] = None, end_date: Optional[str] =
         return f"Erro ao obter top serviços: {str(e)}"
 
 
-@tool
 def get_service_details(service_name: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> str:
     """
     Obtém detalhes de custos de um serviço específico com resolução automática do nome.
@@ -167,7 +164,6 @@ def get_service_details(service_name: str, start_date: Optional[str] = None, end
         return f"Erro ao obter detalhes do serviço: {str(e)}"
 
 
-@tool
 def get_aws_tags() -> str:
     """
     Obtém as tags da AWS.
@@ -181,7 +177,6 @@ def get_aws_tags() -> str:
         return f"Erro ao obter tags: {str(e)}"
 
 
-@tool
 def get_dimension_values(dimension_name: str) -> str:
     """
     Obtém os valores de uma dimensão específica.
@@ -198,7 +193,6 @@ def get_dimension_values(dimension_name: str) -> str:
         return f"Erro ao obter valores da dimensão: {str(e)}"
 
 
-@tool
 def discover_account_resources(limit: int = 5) -> str:
     """
     Descobre todos os recursos ativos na conta AWS com limitação configurável.
@@ -288,7 +282,6 @@ def discover_account_resources(limit: int = 5) -> str:
         return json.dumps({"error": f"Erro na descoberta de recursos: {str(e)}"}, ensure_ascii=False)
 
 
-@tool
 def validate_and_analyze_service(service_name: str) -> str:
     """
     Valida se um serviço existe na conta e retorna análise detalhada.
@@ -416,7 +409,6 @@ def validate_and_analyze_service(service_name: str) -> str:
         return json.dumps({"error": f"Erro na validação do serviço: {str(e)}"}, ensure_ascii=False)
 
 
-@tool
 def analyze_account_coverage() -> str:
     """
     Analisa a cobertura geral da conta AWS em diferentes dimensões.
@@ -541,7 +533,6 @@ def analyze_account_coverage() -> str:
         return json.dumps({"error": f"Erro na análise de cobertura: {str(e)}"}, ensure_ascii=False)
 
 
-@tool
 def get_account_context_data() -> str:
     """
     Coleta dados contextuais abrangentes da conta AWS para análise.
@@ -638,7 +629,6 @@ def get_account_context_data() -> str:
         return json.dumps({"error": f"Erro na coleta de dados contextuais: {str(e)}"}, ensure_ascii=False)
 
 
-@tool
 def check_account_data_availability() -> str:
     """
     Verifica se existem dados de custos disponíveis na conta AWS e em que períodos.
@@ -721,7 +711,6 @@ def check_account_data_availability() -> str:
         return json.dumps({"error": f"Erro na verificação de dados: {str(e)}"}, ensure_ascii=False)
 
 
-@tool
 def aws_ec2_call(method: str, instance_ids: Optional[str] = None, volume_ids: Optional[str] = None, 
                  vpc_ids: Optional[str] = None, subnet_ids: Optional[str] = None, 
                  group_ids: Optional[str] = None, region_name: Optional[str] = None, limit: int = 5) -> str:
@@ -1044,7 +1033,6 @@ def aws_ec2_call(method: str, instance_ids: Optional[str] = None, volume_ids: Op
             }, ensure_ascii=False, indent=2)
 
 
-@tool
 def get_instance_cost_by_name(instance_name: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> str:
     """
     Busca o custo de uma instância EC2 específica pelo nome, usando correlação com tags.
@@ -1266,7 +1254,6 @@ def get_instance_cost_by_name(instance_name: str, start_date: Optional[str] = No
         }, ensure_ascii=False, indent=2)
 
 
-@tool
 def find_instances_by_tag(tag_key: str, tag_value: str = None, limit: int = 5) -> str:
     """
     Busca instâncias EC2 por uma tag específica ou lista todas as instâncias com uma determinada tag.
@@ -1409,7 +1396,6 @@ def find_instances_by_tag(tag_key: str, tag_value: str = None, limit: int = 5) -
         }, ensure_ascii=False, indent=2)
 
 
-@tool
 def audit_governance_tags() -> str:
     """
     Auditoria otimizada de recursos sem tags de governança adequadas.
@@ -1624,7 +1610,6 @@ def audit_governance_tags() -> str:
         }, ensure_ascii=False, indent=2)
 
 
-@tool
 def identify_orphaned_resources(limit: int = 5) -> str:
     """
     Identifica recursos órfãos (não utilizados) na conta AWS com limitação configurável.
@@ -1925,7 +1910,6 @@ def _generate_orphaned_resources_recommendations(orphaned_data: Dict[str, Any]) 
     return recommendations
 
 
-@tool
 def analyze_multiple_tags_costs(tag_keys: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> str:
     """
     Analisa custos de múltiplas tags simultaneamente para um período específico.
@@ -2108,7 +2092,6 @@ def analyze_multiple_tags_costs(tag_keys: str, start_date: Optional[str] = None,
         }, ensure_ascii=False, indent=2)
 
 
-@tool
 def analyze_tag_specific_values(tag_key: str, tag_values: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> str:
     """
     Analisa custos de valores específicos de uma tag para um período determinado.
