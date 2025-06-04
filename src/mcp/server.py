@@ -8,6 +8,7 @@ import sys
 import os
 from typing import Optional
 from starlette.responses import PlainTextResponse
+from starlette.requests import Request
 
 # Adicionar o diretório raiz do projeto ao path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
@@ -224,7 +225,7 @@ def mcp_refresh_services_cache() -> str:
     return refresh_services_cache()
 
 @mcp.custom_route("/health", methods=["GET"])
-async def health_check() -> PlainTextResponse:
+async def health_check(request: Request) -> PlainTextResponse:
     return PlainTextResponse("OK")
 
 if __name__ == "__main__":
