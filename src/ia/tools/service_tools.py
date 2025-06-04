@@ -11,11 +11,9 @@ from datetime import datetime
 # Adicionar o diretório raiz ao path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
-from haystack.tools import tool
 from src.ia.tools.service_resolver import service_resolver
 
 
-@tool
 def resolve_service_name(service_name: str, auto_apply: bool = True) -> str:
     """
     Resolve o nome oficial de um serviço AWS a partir de um nome informal.
@@ -82,7 +80,6 @@ def resolve_service_name(service_name: str, auto_apply: bool = True) -> str:
         }, ensure_ascii=False, indent=2)
 
 
-@tool
 def suggest_services(partial_name: str, limit: int = 10) -> str:
     """
     Sugere serviços AWS baseado em um nome parcial ou palavras-chave.
@@ -131,7 +128,6 @@ def suggest_services(partial_name: str, limit: int = 10) -> str:
         }, ensure_ascii=False, indent=2)
 
 
-@tool
 def list_all_services(category_filter: Optional[str] = None) -> str:
     """
     Lista todos os serviços AWS conhecidos, opcionalmente filtrados por categoria.
@@ -197,7 +193,6 @@ def list_all_services(category_filter: Optional[str] = None) -> str:
         }, ensure_ascii=False, indent=2)
 
 
-@tool
 def refresh_services_cache() -> str:
     """
     Força a atualização do cache de serviços AWS, redescobrindo todos os serviços da conta.

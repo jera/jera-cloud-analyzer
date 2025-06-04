@@ -12,9 +12,7 @@ from statistics import mean, median
 # Adicionar o diretório raiz ao path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
-from haystack.tools import tool
 from src.clouds.aws.cost_explorer import CostExplorer
-
 
 class JsonEncoder(json.JSONEncoder):
     """Encoder JSON personalizado para lidar com tipos especiais como Decimal e datetime."""
@@ -29,7 +27,6 @@ class JsonEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-@tool
 def get_instance_performance_metrics(instance_id: str, hours: int = 24, metrics: Optional[str] = None) -> str:
     """
     Obtém métricas de performance de uma instância EC2 específica via CloudWatch.
@@ -239,7 +236,6 @@ def get_instance_performance_metrics(instance_id: str, hours: int = 24, metrics:
         }, ensure_ascii=False, indent=2)
 
 
-@tool
 def analyze_ec2_fleet_performance(tag_key: Optional[str] = None, tag_value: Optional[str] = None, 
                                 hours: int = 24, max_instances: int = 10) -> str:
     """
@@ -401,7 +397,6 @@ def analyze_ec2_fleet_performance(tag_key: Optional[str] = None, tag_value: Opti
         }, ensure_ascii=False, indent=2)
 
 
-@tool
 def get_network_traffic_analysis(instance_id: str, days: int = 7) -> str:
     """
     Análise específica de tráfego de rede de uma instância EC2.
