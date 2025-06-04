@@ -15,6 +15,8 @@ cloud-analyzer -q "Analise instâncias EC2 subutilizadas"
 ```
 
 ### 🐳 **2. MCP Server (Integração com IDEs e IA)**
+> Nós recomendamos que o arquivo docker-compose.yml seja usado por que ele usa diretamente a imagem docker que sempre vai estar atualizado. O docker-compose-local.yml usa o código local para buildar a imagem.
+
 ```bash
 docker-compose up -d
 # Acesse via http://localhost:8000/mcp
@@ -90,6 +92,8 @@ EOF
 ```
 
 #### **2. Inicie o Servidor MCP**
+> Nós recomendamos que o arquivo docker-compose.yml seja usado por que ele usa diretamente a imagem docker que sempre vai estar atualizado. O docker-compose-local.yml usa o código local para buildar a imagem.
+
 ```bash
 # Iniciar servidor em background
 docker-compose up -d
@@ -154,17 +158,8 @@ curl http://localhost:8000/health
 ```
 
 #### **4. Testando a Integração MCP**
-```bash
-# Teste direto via HTTP
-curl -X POST http://localhost:8000/mcp \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "method": "tools/list",
-    "id": 1
-  }'
 
-# Ou use o script de teste
+```
 python test_mcp.py
 ```
 
