@@ -33,7 +33,8 @@ print_error() {
 }
 
 # Get current directory
-INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_DIR="$(pwd)"
+echo "📂 Diretório de instalação: $INSTALL_DIR"
 
 # Check Python version
 print_step "Verificando versão do Python..."
@@ -87,14 +88,17 @@ print_step "Atualizando ferramentas de instalação..."
 $PIP_CMD install --upgrade pip setuptools wheel
 print_success "Ferramentas atualizadas"
 
-# Install dependencies
+# Install dependencies using pyproject.toml
 print_step "Instalando dependências..."
-$PIP_CMD install -r requirements.txt
-print_success "Dependências instaladas"
+if [ -f "pyproject.toml" ]; then
+    $PIP_CMD install -e .
+    print_success "Dependências instaladas via pyproject.toml"
+else
+    print_error "pyproject.toml não encontrado!"
+    exit 1
+fi
 
-# Install package in editable mode
-print_step "Instalando Jera Cloud Analyzer CLI..."
-$PIP_CMD install -e .
+# Package is already installed in editable mode from above
 print_success "Jera Cloud Analyzer CLI instalado"
 
 # Verify installation and create fallback if needed
