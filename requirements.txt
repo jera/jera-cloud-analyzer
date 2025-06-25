@@ -1,0 +1,14 @@
+# Cloud Insights - Requirements
+# 
+# Este arquivo é gerado a partir de pyproject.toml
+# Para instalar as dependências principais:
+# pip install -e .
+#
+# Para instalar com dependências de desenvolvimento:
+# pip install -e ".[dev]"
+#
+# Para instalar tudo:
+# pip install -e ".[all]"
+
+# Instalação básica
+-e . 
